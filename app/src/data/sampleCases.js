@@ -1,0 +1,157 @@
+export const SAMPLE_CASES = {
+  'card-ct-1': {
+    documentType: 'contract',
+    documentTitle: 'Loan agreement (signed)',
+    'Contract Name': 'LOAN AGREEMENT',
+    'Contract Type': 'Loan Agreement',
+    'Legal Area': 'Loan agreement between Alex Walker Safaris Limited and Serian Limited governed by Tanzanian law.',
+    'Contract Date': '2020 June 01',
+    'Signing Date': '2020 June 01',
+    'Expiration Date': 'N/A',
+    'Parties': 'SERIAN LIMITED, the Lender incorporated in England · ALEX WALKER SAFARIS LIMITED, the Borrower incorporated in Tanzania',
+    'Governing Law': 'United Republic of Tanzania',
+    'Contract Value': '200,000.00',
+    'Currency': 'USD',
+    effectiveDate: 'The agreement becomes effective on the date of signing by both parties, 1 June 2020.',
+    jurisdiction: 'United Republic of Tanzania — any disputes arising under this agreement shall be subject to the exclusive jurisdiction of the courts of Tanzania.',
+    paymentTerms: 'The Borrower shall repay the loan in quarterly instalments over a period of 5 years, with interest at 8% per annum on the outstanding balance.',
+    term: '5 years from the date of signing, with an option to extend by mutual written agreement of both parties.',
+    scopeOfWork: 'Serian Limited provides a loan facility of USD 200,000 to Alex Walker Safaris Limited for the purpose of expanding safari operations in Tanzania.',
+    background: 'Alex Walker Safaris Limited sought financing to expand its safari lodge operations in the Serengeti region. Serian Limited, a related entity incorporated in England, agreed to provide a loan facility under Tanzanian law.',
+    fees: 'Arrangement fee: USD 2,000 (1% of principal). Late payment penalty: 2% per month on overdue amounts.',
+  },
+  'card-fs-1': {
+    documentType: 'financial-statement',
+    companyName: '3 M - MAZZUCCHETTI S.R.L.',
+    documentTitle: 'Bilancio di esercizio al 31/12/2023',
+    'Statement Type': 'Financial Statements',
+    'Reporting Period End Date': '2023 December 31',
+    'Industry': 'Industrials',
+    'Country Or Region': 'Other',
+    'Revenue': '6,655,502.00',
+    'Profit Or Loss': '1,599,543.00',
+    'Auditor Opinion': 'Unqualified (Unmodified)',
+    'Is Signed': 'true',
+    companyIdentifiers: 'Tax ID: IT02345678901 · REA: MI-1234567 · Share Capital: €1,000,000',
+    reportingStandards: 'Italian GAAP (OIC)',
+    consolidationLevel: 'Standalone',
+    presentationCurrency: 'EUR (€)',
+    units: 'Units',
+    roundingPolicy: 'No rounding applied',
+  },
+  'card-1': {
+    parties: 'ADARSH LIMITED VS COMMISSIONER OF CUSTOMS AND BORDER CONTROL',
+    caseRef: 'TAT e1314/2024',
+    'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October 15',
+    'Tax Type': 'Customs Duty', 'Tax Issue Category': 'Assessment Dispute',
+    'Disposition': 'Dismissed', 'Prevailing Party': 'Respondent (KRA)',
+    'Disputed Tax Amount': 'KES 28,923,698', 'Penalty Amount': 'KES 4,338,555',
+    'Taxpayer Classification': 'Large Taxpayer', 'Revenue Authority': 'KRA - Customs',
+    'Cited Statute': 'EACCMA Section 135(1)', 'Jurisdiction': 'Nairobi',
+    background: "Adarsh Limited, a Kenyan import trading company, challenged a demand for short-levied duties amounting to Kshs 28,923,698 issued by the Commissioner of Customs and Border Control following a post-clearance audit. The dispute arose from the application of duty rates under the Integrated Customs Management System (ICMS), which allegedly failed to reflect the correct rates as per the East African Community Common External Tariff (EAC CET) and Legal Notices EAC/129/2023 and EAC/147/2024. The Appellant argued that it had paid duties in good faith based on the ICMS configuration at the time of importation, while the Respondent contended that the Appellant should have ensured compliance with the updated duty rates.",
+    issues: "Whether the Respondent was justified in demanding the short-levied taxes. Whether the Respondent acted within a reasonable timeframe in issuing the demand for short-levied taxes.",
+    appellant: "The Appellant argued that the demand for additional duties was erroneous, punitive, and unreasonable, as it relied on the ICMS system configured by the Respondent to calculate and pay duties at the time of importation. The Appellant claimed that the Respondent failed to update the ICMS system to reflect the correct duty rates and breached the principle of legitimate expectation. The Appellant also cited legal precedents, including Civil Appeal No. 67 of 2017 (Krish Commodity Limited vs Kenya Revenue Authority), to support its position.",
+    respondent: "The Respondent argued that the duty rate of 35% or USD 1,500 per metric tonne, whichever is higher, was applicable as per Legal Notices EAC/129/2023 and EAC/147/2024. It asserted that the ICMS system had been updated to reflect these rates and that the Appellant was responsible for ensuring compliance. The Respondent emphasized its statutory authority under Sections 94, 135(1), 235, and 236 of the East African Community Customs Management Act (EACCMA).",
+    findings: "The Tribunal found that the Respondent was justified in demanding the short-levied taxes under Section 135(1) of EACCMA. It determined that the demand was issued within a reasonable timeframe of 1 year and 2 months after the initial duty payment, which was not deemed irrational or unfair. The Tribunal concluded that the Appellant failed to exercise due diligence in verifying the duty rates and could not rely on the principle of legitimate expectation to avoid paying the short-levied taxes.",
+    decision: "The Tribunal dismissed the Appeal, upheld the Respondent\u2019s Review Decision dated 11th December 2024, and ordered each party to bear its own costs.",
+  },
+  'card-2': {
+    parties: 'JACARANDA GARDENS MANAGEMENT COMPANY LIMITED VS COMMISSIONER OF DOMESTIC TAXES',
+    caseRef: 'TAT e1294/2024',
+    'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October 28',
+    'Tax Type': 'VAT / Corporation Tax', 'Tax Issue Category': 'Classification Dispute',
+    'Disposition': 'Allowed', 'Prevailing Party': 'Appellant (Taxpayer)',
+    'Disputed Tax Amount': 'KES 12,500,000', 'Penalty Amount': 'KES 1,875,000',
+    'Taxpayer Classification': 'Medium Taxpayer', 'Revenue Authority': 'KRA - Domestic Taxes',
+    'Cited Statute': 'VAT Act, 2013 Section 13(5)', 'Jurisdiction': 'Nairobi',
+    background: "The Appellant, Jacaranda Gardens Management Company Limited, is a management company formed by homeowners of Jacaranda Gardens Estate to centralize procurement of essential services for the residential community. The Respondent, Commissioner of Domestic Taxes, conducted a tax audit for the years 2018 to 2022 and issued additional tax assessments for VAT and Corporation Tax. The Appellant objected to the assessments, arguing that the Respondent erroneously treated non-revenue items such as interbank transfers, water bills, and reversals as taxable income, disallowed legitimate expenses, and misapplied VAT on third-party disbursements.",
+    issues: "Whether the Respondent was justified in assessing and confirming Corporation Tax. Whether the Respondent was justified in assessing and confirming VAT.",
+    appellant: "The Appellant argued that the Respondent erred in treating interbank transfers, reversals, and water bill payments as taxable income, leading to double taxation and incorrect assessments. It contended that these items were non-revenue and supported its position with bank statements and other financial documents. The Appellant also claimed that the Respondent disallowed legitimate expenses such as salaries, wages, and security costs, and argued that third-party disbursements for services like garbage collection, security, and maintenance were not vatable under Section 13(5) of the VAT Act.",
+    respondent: "The Respondent maintained that the Appellant failed to provide sufficient documentation to support its claims regarding interbank transfers, water bills, and other non-revenue items. It argued that all bank deposits were income and subject to Corporation Tax. The Respondent also contended that the Appellant\u2019s management services constituted vatable supplies under Section 5 of the VAT Act and relied on the banking analysis method to assess the Appellant\u2019s tax liability.",
+    findings: "The Tribunal found that the Appellant provided sufficient documentation to demonstrate that interbank transfers, reversals, and water bill payments were non-revenue items and should not have been treated as taxable income. The Tribunal also determined that the Respondent failed to adequately analyze the Appellant\u2019s bank statements. Regarding VAT, the Tribunal held that third-party disbursements for services like garbage collection and security were not vatable under Section 13(5) of the VAT Act.",
+    decision: "The Tribunal allowed the Appeal, set aside the Respondent\u2019s Objection Decision dated 26th September 2024, and ordered each party to bear its own costs.",
+  },
+  'card-3': {
+    parties: 'DELMONTE KENYA LIMITED VS COMMISSIONER LEGAL SERVICES AND BOARD CO-ORDINATION',
+    caseRef: 'TAT e504/2025',
+    'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October',
+    'Tax Type': 'Income Tax (Transfer Pricing)', 'Tax Issue Category': 'Transfer Pricing',
+    'Disposition': 'Dismissed', 'Prevailing Party': 'Respondent (KRA)',
+    'Disputed Tax Amount': 'KES 4,959,226,516', 'Penalty Amount': '\u2014',
+    'Taxpayer Classification': 'Large Taxpayer', 'Revenue Authority': 'KRA',
+    'Cited Statute': 'Income Tax Act, Transfer Pricing Rules', 'Jurisdiction': 'Nairobi',
+    background: "Delmonte Kenya Limited, engaged in pineapple cultivation and processing, was audited by the Kenya Revenue Authority (KRA) for transfer pricing compliance for the period 2019-2021. KRA issued additional income tax assessments amounting to Kshs. 4,863,801,636.00, later confirmed at Kshs. 4,959,226,516.00 after the Appellant\u2019s objection. The Appellant challenged the assessments, arguing errors in functional analysis, transfer pricing methodology, and disallowance of recharges and interest expenses.",
+    issues: "Ownership of DMF B.V. (whether wholly owned by DMI GmbH or Fresh Delmonte Produce Inc.). Accuracy of the Appellant\u2019s Functional Assets and Risk (FAR) analysis. Appropriateness of the transfer pricing method employed by the Appellant. Provision of supporting documentation for recharged costs. Arm\u2019s length nature of the intercompany loan terms from DMF B.V.",
+    appellant: "The Appellant argued that DMF B.V. is owned by Fresh Delmonte Produce Inc., not DMI GmbH. It claimed its FAR analysis was accurate, attributing significant functions, assets, and risks to DMI GmbH. The Appellant defended its use of the Transactional Net Margin Method (TNMM) with Full Cost Mark-Up (FCMU) as appropriate for determining arm\u2019s length pricing. It also asserted that recharged costs and interest expenses were valid business expenses supported by documentation.",
+    respondent: "The Respondent contended that DMF B.V. is wholly owned by DMI GmbH and disputed the Appellant\u2019s FAR analysis, attributing most functions, assets, and risks to the Appellant. It argued that the TNMM method was inappropriate, as DMI GmbH should have been the tested party. The Respondent disallowed recharged costs and interest expenses due to insufficient documentation and questioned the commercial rationality of the intercompany loan arrangement.",
+    findings: "The Tribunal found that DMF B.V. is wholly owned by DMI GmbH, and the Appellant failed to prove otherwise. It held that the Appellant\u2019s FAR analysis was inaccurate, attributing most functions, assets, and risks to the Appellant. The Tribunal determined that the TNMM method was inappropriate, as DMI GmbH was the less complex party and should have been the tested party. It upheld the Respondent\u2019s disallowance of recharged costs and interest expenses.",
+    decision: "The Tribunal dismissed the appeal, upheld the Respondent\u2019s objection decision dated 17th March, 2025, and ordered each party to bear its own costs.",
+  },
+};
+
+export const REPORT_SECTIONS = [
+  { id: 'background',  label: 'Background',              enabled: true },
+  { id: 'issues',      label: 'Issues for Determination', enabled: true },
+  { id: 'appellant',   label: "Appellant's Argument",     enabled: true },
+  { id: 'respondent',  label: "Respondent's Argument",    enabled: true },
+  { id: 'findings',    label: 'Tribunal Findings',        enabled: true },
+  { id: 'decision',    label: "Tribunal's Decision",      enabled: true },
+];
+
+export const FIELD_CATEGORIES = {
+  'Case Info': ['Court','Court Level','Decision Date','Decision Type','Jurisdiction','Judge Name','Disposition','Prevailing Party'],
+  'Parties': ['Plaintiff Name','Plaintiff Type','Plaintiff Law Firm','Defendant Name','Defendant Type','Defendant Law Firm'],
+  'Tax': ['Tax Type','Tax Issue Category','Tax Years','Taxpayer Classification','Revenue Authority'],
+  'Financial': ['Disputed Tax Amount','Penalty Amount','Interest Amount','Monetary Damages'],
+  'Legal': ['Issues','Holdings','Key Facts','Legal Principles','Legal Topics','Overview','Remedies'],
+  'Precedent': ['Precedent Citation','Precedent Name','Cited Statute','Statute Citation']
+};
+
+/* ─── Schema registry: sections, fields & defaults per document type ── */
+
+export const REPORT_SECTIONS_BY_TYPE = {
+  'case-law': REPORT_SECTIONS,
+  'financial-statement': [
+    { id: 'companyIdentifiers',    label: 'Company Identifiers',    enabled: true },
+    { id: 'reportingStandards',    label: 'Reporting Standards',    enabled: true },
+    { id: 'consolidationLevel',    label: 'Consolidation Level',    enabled: true },
+    { id: 'presentationCurrency',  label: 'Presentation Currency',  enabled: true },
+    { id: 'units',                 label: 'Units',                  enabled: false },
+    { id: 'roundingPolicy',        label: 'Rounding Policy',        enabled: false },
+  ],
+  'contract': [
+    { id: 'background',     label: 'Background',      enabled: true },
+    { id: 'scopeOfWork',    label: 'Scope of Work',    enabled: true },
+    { id: 'paymentTerms',   label: 'Payment Terms',    enabled: true },
+    { id: 'fees',           label: 'Fees',             enabled: true },
+    { id: 'term',           label: 'Term',             enabled: true },
+    { id: 'jurisdiction',   label: 'Jurisdiction',     enabled: true },
+    { id: 'effectiveDate',  label: 'Effective Date',   enabled: false },
+  ],
+};
+
+export const FIELD_CATEGORIES_BY_TYPE = {
+  'case-law': FIELD_CATEGORIES,
+  'financial-statement': {
+    'Company': ['Statement Type', 'Industry', 'Country Or Region'],
+    'Financials': ['Revenue', 'Profit Or Loss', 'Currency'],
+    'Audit': ['Auditor Opinion', 'Is Signed', 'Reporting Period End Date'],
+  },
+  'contract': {
+    'Contract': ['Contract Name', 'Contract Type', 'Legal Area'],
+    'Dates': ['Contract Date', 'Signing Date', 'Expiration Date'],
+    'Parties & Terms': ['Parties', 'Governing Law', 'Contract Value', 'Currency'],
+  },
+};
+
+export const DEFAULT_META_FIELDS_BY_TYPE = {
+  'case-law': ['Court', 'Court Level', 'Decision Date', 'Tax Type', 'Disposition', 'Prevailing Party', 'Disputed Tax Amount', 'Penalty Amount', 'Taxpayer Classification'],
+  'financial-statement': ['Statement Type', 'Reporting Period End Date', 'Industry', 'Revenue', 'Profit Or Loss', 'Auditor Opinion'],
+  'contract': ['Contract Name', 'Contract Type', 'Contract Date', 'Parties', 'Governing Law', 'Contract Value', 'Currency'],
+};
+
+export const DOC_TYPE_LABELS = {
+  'case-law': 'Case Law',
+  'financial-statement': 'Financial Statements',
+  'contract': 'Contracts',
+};

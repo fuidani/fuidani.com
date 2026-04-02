@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JibuDocs Search</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      padding: 0 24px;
+      transform: translateY(-48px);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 32px;
+      letter-spacing: -0.01em;
+    }
+
+    .search-bar {
+      position: relative;
+      width: 100%;
+      margin-bottom: 40px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 16px 52px 16px 20px;
+      font-size: 1rem;
+      color: #1e293b;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-bar input::placeholder { color: #94a3b8; }
+
+    .search-bar input:focus {
+      border-color: #ca8a04;
+      box-shadow: 0 0 0 3px rgba(202, 138, 4, 0.15);
+    }
+
+    .search-bar button {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      background: #1e293b;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .search-bar button:hover { background: #334155; }
+
+    .search-bar button svg {
+      width: 18px;
+      height: 18px;
+      fill: #ffffff;
+    }
+
+    .suggestions-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      color: #475569;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      user-select: none;
+    }
+
+    .chip:hover {
+      background: #fefce8;
+      border-color: #ca8a04;
+      color: #1e293b;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 24px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        justify-content: flex-start;
+        padding-top: 48px;
+      }
+
+      .container {
+        transform: none;
+        padding: 0 16px;
+      }
+
+      h1 {
+        font-size: 1.35rem;
+        margin-bottom: 24px;
+      }
+
+      .search-bar {
+        margin-bottom: 28px;
+      }
+
+      .search-bar input {
+        padding: 12px 46px 12px 16px;
+        font-size: 0.9rem;
+        border-radius: 12px;
+      }
+
+      .search-bar button {
+        width: 34px;
+        height: 34px;
+      }
+
+      .suggestions-label {
+        margin-bottom: 10px;
+      }
+
+      .suggestions {
+        gap: 8px;
+      }
+
+      .chip {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        border-radius: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>What are you looking for?</h1>
+
+    <div class="search-bar">
+      <input type="text" placeholder="Search legal topics, cases, statutes..." autofocus>
+      <button type="button" aria-label="Search">
+        <svg viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+    </div>
+
+    <div class="suggestions-label">Suggestions</div>
+    <div class="suggestions">
+      <span class="chip">Blind discrimination</span>
+      <span class="chip">Discover fraud upon exercise of reasonable diligence</span>
+      <span class="chip">Value Added Tax</span>
+      <span class="chip">General damages for unfair termination</span>
+      <span class="chip">Section 12 of the Consumer Protection Act</span>
+      <span class="chip">Breach of fiduciary duty</span>
+      <span class="chip">Constitutional right to fair hearing</span>
+      <span class="chip">Vicarious liability in employment</span>
+    </div>
+  </div>
+
+
+  <script>
+    const input = document.querySelector('.search-bar input');
+    const searchBtn = document.querySelector('.search-bar button');
+
+    // Pre-fill input if returning from refine page
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) input.value = q;
+
+    function goToRefine() {
+      const query = input.value.trim();
+      if (query) {
+        window.location.href = 'refine.html?q=' + encodeURIComponent(query);
+      }
+    }
+
+    // Enter key navigates to refine
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') goToRefine();
+    });
+
+    // Button click navigates to refine
+    searchBtn.addEventListener('click', goToRefine);
+
+    // Chips fill the input
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        input.value = chip.textContent;
+        input.focus();
+      });
+    });
+  </script>
+</body>
+</html>

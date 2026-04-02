@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(rm \"e:/jibudocs-reporting-feature-5/app/src/App.css\")",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(xargs wc:*)"
+    ]
+  }
+}

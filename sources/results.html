@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JibuDocs – Search Results</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1e293b;
+      font-size: 14px;
+      line-height: 1.5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top nav bar ─────────────────────────────────── */
+    .topbar {
+      background: #1e293b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      height: 48px;
+      padding: 0 16px;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 200;
+    }
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 15px;
+      margin-right: 20px;
+      flex-shrink: 0;
+    }
+    .topbar-logo svg { width: 22px; height: 22px; }
+    .topbar-tabs {
+      display: flex;
+      gap: 2px;
+    }
+    .topbar-tab {
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-tab:hover { color: #e2e8f0; background: rgba(255,255,255,0.08); }
+    .topbar-tab.active { color: #fff; background: rgba(255,255,255,0.12); }
+    .topbar-spacer { flex: 1; }
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .topbar-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #ca8a04;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ── Secondary nav ───────────────────────────────── */
+    .secondary-nav {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      height: 40px;
+      gap: 4px;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .secondary-tab {
+      font-size: 12px;
+      color: #64748b;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .secondary-tab:hover { color: #1e293b; background: #f1f5f9; }
+    .secondary-tab.active { color: #1e293b; font-weight: 600; background: #f1f5f9; }
+    .secondary-sep { width: 1px; height: 18px; background: #e2e8f0; margin: 0 4px; flex-shrink: 0; }
+
+    /* ── Search row ──────────────────────────────────── */
+    .search-row {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .search-row-tabs {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .search-row-tab {
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      color: #64748b;
+      transition: all 0.15s;
+    }
+    .search-row-tab.active { background: #f1f5f9; color: #1e293b; font-weight: 500; }
+    .search-row-input {
+      flex: 1;
+      position: relative;
+    }
+    .search-row-input input {
+      width: 100%;
+      padding: 7px 12px 7px 32px;
+      font-size: 13px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      outline: none;
+      color: #1e293b;
+      background: #f8fafc;
+      transition: border-color 0.15s;
+    }
+    .search-row-input input:focus {
+      border-color: #ca8a04;
+      box-shadow: 0 0 0 2px rgba(202,138,4,0.1);
+    }
+    .search-row-input svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      stroke: #94a3b8;
+    }
+    .search-btn {
+      background: #ca8a04;
+      color: #fff;
+      border: none;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .search-btn:hover { background: #a16207; }
+    .search-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .action-icon-btn:hover { background: #f1f5f9; }
+    .action-icon-btn svg { width: 14px; height: 14px; stroke: #64748b; }
+
+    /* ── Main layout (3 columns) ─────────────────────── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr 360px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left sidebar – Filters ──────────────────────── */
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .add-filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #ca8a04;
+      background: none;
+      border: 1px dashed #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 16px;
+      transition: all 0.15s;
+    }
+    .add-filter-btn:hover { border-color: #ca8a04; background: #fefce8; }
+    .filter-section {
+      margin-bottom: 14px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 12px;
+    }
+    .filter-section:last-of-type { border-bottom: none; }
+    .filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    .filter-header-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .filter-chevron {
+      width: 14px;
+      height: 14px;
+      stroke: #94a3b8;
+      transition: transform 0.2s;
+    }
+    .filter-section.collapsed .filter-chevron { transform: rotate(-90deg); }
+    .filter-section.collapsed .filter-options { display: none; }
+    .filter-options {
+      margin-top: 8px;
+    }
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: 12px;
+      color: #475569;
+      cursor: pointer;
+    }
+    .filter-option input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: #ca8a04;
+      cursor: pointer;
+    }
+    .filter-count {
+      margin-left: auto;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .filter-show-more {
+      font-size: 11px;
+      color: #ca8a04;
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-top: 4px;
+      padding: 2px 0;
+    }
+    .filter-show-more:hover { text-decoration: underline; }
+    .apply-filter-bar {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+    }
+    .apply-btn {
+      flex: 1;
+      padding: 7px 0;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .apply-btn-primary {
+      background: #ca8a04;
+      color: #fff;
+    }
+    .apply-btn-primary:hover { background: #a16207; }
+    .apply-btn-secondary {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+    .apply-btn-secondary:hover { background: #e2e8f0; color: #1e293b; }
+
+    /* ── Center – Results ─────────────────────────────── */
+    .results-area {
+      padding: 16px 20px;
+      overflow-y: auto;
+    }
+
+    /* Suggested filter chips */
+    .suggested-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .suggested-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      transition: all 0.15s;
+    }
+    .suggested-chip:hover { border-color: #ca8a04; color: #1e293b; }
+    .suggested-chip.active-chip {
+      background: #ca8a04;
+      color: #fff;
+      border-color: #ca8a04;
+    }
+    .suggested-label {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    .result-count {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    .result-count strong { color: #1e293b; }
+
+    /* ── Result card ──────────────────────────────────── */
+    .result-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .result-card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .result-card.report-selected {
+      border-color: #ca8a04;
+      box-shadow: 0 0 0 1px #ca8a04, 0 2px 8px rgba(202,138,4,0.1);
+    }
+    .card-header {
+      padding: 14px 18px 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .card-source {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #ca8a04;
+      margin-top: 2px;
+    }
+    .card-source svg { width: 12px; height: 12px; }
+    .card-header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .card-open-btn {
+      font-size: 11px;
+      color: #64748b;
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 4px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .card-open-btn:hover { border-color: #94a3b8; color: #1e293b; }
+    .card-open-btn svg { width: 11px; height: 11px; }
+
+    /* Add to report button on cards */
+    .card-report-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #ca8a04;
+      background: #fff;
+      border: 1px solid #ca8a04;
+      border-radius: 5px;
+      padding: 4px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .card-report-btn:hover { background: #fefce8; }
+    .card-report-btn svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .card-report-btn.added {
+      background: #ca8a04;
+      color: #fff;
+      border-color: #ca8a04;
+    }
+    .card-report-btn.added:hover { background: #a16207; }
+
+    .card-fields {
+      padding: 12px 18px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px 20px;
+    }
+    .card-field-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #94a3b8;
+      margin-bottom: 2px;
+    }
+    .card-field-value {
+      font-size: 12px;
+      color: #334155;
+      line-height: 1.4;
+    }
+    .card-field-value.truncate {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-parties {
+      padding: 0 18px 10px;
+    }
+    .card-parties-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .card-parties-list {
+      font-size: 12px;
+      color: #334155;
+      padding-left: 16px;
+    }
+    .card-parties-list li { margin-bottom: 2px; }
+
+    /* Card footer */
+    .card-footer {
+      border-top: 1px solid #f1f5f9;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      background: #fafbfc;
+    }
+    .card-footer-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 3px 10px;
+      white-space: nowrap;
+      cursor: pointer;
+      border-right: 1px solid #f1f5f9;
+      transition: color 0.15s;
+    }
+    .card-footer-field:last-of-type { border-right: none; }
+    .card-footer-field:hover { color: #64748b; }
+    .card-footer-field .plus {
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1;
+    }
+    .card-footer-more {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-left: 4px;
+      margin-right: auto;
+    }
+    .edit-card-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #64748b;
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 3px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-left: auto;
+      transition: all 0.15s;
+    }
+    .edit-card-btn:hover { border-color: #94a3b8; color: #1e293b; }
+    .edit-card-btn svg { width: 11px; height: 11px; }
+
+    /* ── Right panel – Preview ────────────────────────── */
+    .preview-panel {
+      background: #fff;
+      border-left: 1px solid #e2e8f0;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .preview-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .preview-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    .preview-text {
+      font-size: 12.5px;
+      color: #475569;
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+
+    /* ══════════════════════════════════════════════════
+       REPORT COLLECTOR BAR (bottom of screen)
+       ══════════════════════════════════════════════════ */
+    .report-collector {
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 50;
+    }
+    .report-collector.visible {
+      transform: translateY(0);
+    }
+    .rc-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(202,138,4,0.2);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .rc-icon svg { width: 16px; height: 16px; fill: none; stroke: #ca8a04; stroke-width: 2; }
+    .rc-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .rc-count {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .rc-hint {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .rc-pills {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      overflow-x: auto;
+      padding: 2px 0;
+    }
+    .rc-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .rc-pill-remove {
+      cursor: pointer;
+      opacity: 0.5;
+      font-size: 14px;
+      line-height: 1;
+      transition: opacity 0.15s;
+    }
+    .rc-pill-remove:hover { opacity: 1; }
+    .rc-clear-btn {
+      font-size: 11px;
+      color: #94a3b8;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 5px;
+      padding: 6px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .rc-clear-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+    .rc-build-btn {
+      background: #ca8a04;
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rc-build-btn:hover { background: #a16207; }
+    .rc-build-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+    /* ══════════════════════════════════════════════════
+       REPORT BUILDER OVERLAY
+       ══════════════════════════════════════════════════ */
+    .report-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      background: #f3f4f6;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .report-overlay.open {
+      transform: translateX(0);
+    }
+
+    /* Report overlay header */
+    .ro-header {
+      background: #1e293b;
+      color: #fff;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .ro-back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #94a3b8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 5px;
+      transition: all 0.15s;
+    }
+    .ro-back-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    .ro-back-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .ro-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ro-title-icon {
+      width: 24px;
+      height: 24px;
+      background: rgba(202,138,4,0.2);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ro-title-icon svg { width: 13px; height: 13px; fill: none; stroke: #ca8a04; stroke-width: 2; }
+
+    /* Report stepper */
+    .ro-stepper {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 50px;
+      gap: 0;
+      flex-shrink: 0;
+    }
+    .ro-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      height: 100%;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .ro-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      border: 2px solid #d1d5db;
+      color: #9ca3af;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .ro-step-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      white-space: nowrap;
+      transition: color 0.2s;
+    }
+    .ro-step.active .ro-step-num {
+      border-color: #ca8a04;
+      background: #ca8a04;
+      color: #fff;
+    }
+    .ro-step.active .ro-step-label { color: #1e293b; }
+    .ro-step.completed .ro-step-num {
+      border-color: #047857;
+      background: #d1fae5;
+      color: #047857;
+    }
+    .ro-step.completed .ro-step-label { color: #6b7280; }
+    .ro-step-connector {
+      flex: 0 0 32px;
+      height: 2px;
+      background: #e5e7eb;
+      margin: 0 4px;
+    }
+    .ro-step-connector.done { background: #047857; }
+    .ro-stepper-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .ro-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .ro-btn-secondary { background: #fff; color: #374151; border-color: #d1d5db; }
+    .ro-btn-secondary:hover { border-color: #9ca3af; background: #f9fafb; }
+    .ro-btn-primary { background: #ca8a04; color: #fff; }
+    .ro-btn-primary:hover { background: #a16207; }
+    .ro-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Report overlay body */
+    .ro-body { flex: 1; overflow: hidden; min-height: 0; }
+    .ro-page { flex: 1; overflow: hidden; display: none; min-height: 0; }
+    .ro-page.active { display: flex; }
+
+    /* ── Report Step 1: Configure ── */
+    .config-layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    .config-left {
+      width: 360px;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .config-left-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+
+    .config-section { margin-bottom: 20px; }
+    .config-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9ca3af;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .config-section-title .cs-num {
+      width: 18px;
+      height: 18px;
+      background: #1e293b;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; color: #4b5563; margin-bottom: 3px; }
+    .form-group input[type="text"], .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #1f2937;
+      background: #fff;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #ca8a04;
+      box-shadow: 0 0 0 3px rgba(202,138,4,0.12);
+    }
+
+    /* Section toggles */
+    .section-toggle-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .section-toggle-item:hover { background: #f9fafb; }
+    .section-toggle-item .drag-handle { cursor: grab; color: #d1d5db; font-size: 10px; }
+    .section-toggle-item .toggle-label { flex: 1; font-size: 12px; font-weight: 500; color: #374151; }
+    .toggle-switch {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-switch .slider {
+      position: absolute;
+      inset: 0;
+      background: #d1d5db;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-switch .slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 2px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked + .slider { background: #ca8a04; }
+    .toggle-switch input:checked + .slider::before { transform: translateX(16px); }
+
+    /* Field pills */
+    .field-pill-list { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+    .field-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #4b5563;
+      cursor: pointer;
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .field-pill:hover { border-color: #ca8a04; color: #ca8a04; }
+    .field-pill.selected { background: #1e293b; color: #fff; border-color: #1e293b; }
+    .field-pill.selected:hover { background: #334155; }
+    .field-category {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9ca3af;
+      padding: 6px 0 3px;
+    }
+    .field-search-mini {
+      width: 100%;
+      padding: 6px 10px 6px 28px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 11px;
+      margin-bottom: 8px;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239CA3AF' stroke-width='1.5' d='m14.5 14.5-3-3m1.5-3.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z'/%3E%3C/svg%3E") 8px center / 12px no-repeat;
+    }
+    .field-search-mini:focus { outline: none; border-color: #ca8a04; }
+
+    /* Config right – live preview */
+    .config-right {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── Report Step 2: Preview & Export ── */
+    .preview-layout { display: flex; flex: 1; overflow: hidden; }
+    .preview-sidebar {
+      width: 240px;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .preview-sidebar-header {
+      padding: 14px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f9fafb;
+    }
+    .preview-sidebar-header h3 { font-size: 12px; font-weight: 700; color: #1e293b; }
+    .preview-sidebar-scroll { flex: 1; overflow-y: auto; padding: 10px; }
+    .preview-main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Export buttons */
+    .export-list { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .export-btn:hover { border-color: #ca8a04; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .export-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .export-label { font-size: 12px; font-weight: 700; color: #1e293b; }
+    .export-desc { font-size: 10px; color: #6b7280; }
+
+    /* Summary items */
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .summary-item .si-label { color: #6b7280; }
+    .summary-item .si-value { font-weight: 600; color: #1e293b; }
+
+    /* ── Document page (preview) ── */
+    .doc-page {
+      width: 800px;
+      min-height: 900px;
+      background: white;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
+      border-radius: 3px;
+      padding: 56px 60px;
+      line-height: 1.6;
+      color: #222;
+      font-size: 13.5px;
+    }
+    .doc-page .doc-header { border-bottom: 3px solid #1e293b; padding-bottom: 16px; margin-bottom: 26px; }
+    .doc-page .doc-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .doc-page .doc-brand-icon {
+      width: 30px; height: 30px; background: #ca8a04; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 15px; color: white;
+    }
+    .doc-page .doc-brand-name { font-size: 18px; font-weight: 700; color: #1e293b; }
+    .doc-page .doc-title { font-size: 22px; font-weight: 700; color: #1e293b; margin: 6px 0 3px; }
+    .doc-page .doc-subtitle { font-size: 13px; color: #6b7280; }
+    .doc-page .doc-meta { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+    .doc-page .case-block { margin-bottom: 28px; page-break-inside: avoid; }
+    .doc-page .case-title {
+      font-size: 13px; font-weight: 700; color: #1e293b;
+      padding: 7px 12px; background: #fef3c7;
+      border-left: 4px solid #ca8a04; border-radius: 0 4px 4px 0; margin-bottom: 12px;
+    }
+    .doc-page .case-meta-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 3px 18px;
+      margin-bottom: 12px; padding: 10px 14px;
+      background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;
+    }
+    .doc-page .case-meta-item { display: flex; gap: 6px; font-size: 11px; padding: 2px 0; }
+    .doc-page .case-meta-item .meta-label { font-weight: 700; color: #6b7280; min-width: 95px; flex-shrink: 0; }
+    .doc-page .case-meta-item .meta-value { color: #1f2937; }
+    .doc-page .case-section { margin-bottom: 8px; }
+    .doc-page .case-section-title {
+      font-size: 11px; font-weight: 700; color: #1e293b; text-transform: uppercase;
+      letter-spacing: 0.3px; margin-bottom: 3px; padding-bottom: 2px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .doc-page .case-section-body { font-size: 12px; color: #374151; line-height: 1.65; text-align: justify; }
+    .doc-page .case-separator { border: none; border-top: 1px dashed #d1d5db; margin: 20px 0; }
+    .doc-page .doc-footer {
+      margin-top: 36px; padding-top: 10px; border-top: 2px solid #1e293b;
+      display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af;
+    }
+
+    /* ── Scrollbar styling ────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ── Print ── */
+    @media print {
+      .topbar, .secondary-nav, .search-row, .sidebar, .preview-panel,
+      .report-collector, .ro-header, .ro-stepper, .config-left, .preview-sidebar,
+      .card-report-btn, .card-open-btn, .card-footer, .toast { display: none !important; }
+
+      body { height: auto; overflow: visible; display: block; }
+      .main-layout { display: block; overflow: visible; }
+      .results-area { overflow: visible !important; height: auto !important; }
+      .result-card { break-inside: avoid; border: 1px solid #ccc; margin-bottom: 12px; }
+
+      .report-overlay { display: none !important; }
+      .report-overlay.printing { display: flex !important; position: static; transform: none; }
+      .report-overlay.printing .preview-main,
+      .report-overlay.printing .preview-layout,
+      .report-overlay.printing .ro-body,
+      .report-overlay.printing .ro-page { overflow: visible !important; }
+      .doc-page { box-shadow: none; width: 100%; padding: 40px 50px; }
+    }
+
+    /* ── Responsive collapse ──────────────────────────── */
+    @media (max-width: 1100px) {
+      .main-layout { grid-template-columns: 220px 1fr; }
+      .preview-panel { display: none; }
+    }
+    @media (max-width: 740px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+    @media (max-width: 900px) {
+      .config-left { width: 280px; }
+      .preview-sidebar { display: none; }
+      .doc-page { width: 100%; padding: 30px; }
+    }
+
+    /* ── Toast notification ──────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 9999;
+      white-space: nowrap;
+    }
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ TOP BAR ════════════════ -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="#ca8a04"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="#ca8a04" opacity="0.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="#ca8a04" opacity="0.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="#ca8a04" opacity="0.3"/></svg>
+    JibuDocs
+  </div>
+  <div class="topbar-tabs">
+    <a class="topbar-tab active" href="#">Doc Search</a>
+    <a class="topbar-tab" href="#">File Browser</a>
+    <a class="topbar-tab" href="#" id="reportsTab" onclick="openReportOverlay()">Reports</a>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-user">
+    <span>dpisani@637capital.com</span>
+    <div class="topbar-avatar">DP</div>
+  </div>
+</div>
+
+<!-- ════════════════ SECONDARY NAV ════════════════ -->
+<div class="secondary-nav">
+  <a class="secondary-tab active" href="#">Searching (enabled)</a>
+  <div class="secondary-sep"></div>
+  <a class="secondary-tab" href="#">AI results</a>
+  <a class="secondary-tab" href="#">Data Type Drillup</a>
+  <a class="secondary-tab" href="#">Place</a>
+  <a class="secondary-tab" href="#">Finance search</a>
+</div>
+
+<!-- ════════════════ SEARCH ROW ════════════════ -->
+<div class="search-row">
+  <div class="search-row-tabs">
+    <span class="search-row-tab active">Metadata</span>
+    <span class="search-row-tab">Full text</span>
+  </div>
+  <div class="search-row-input">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Search here..." id="mainSearch">
+  </div>
+  <button class="search-btn">Search</button>
+  <div class="search-actions">
+    <button class="action-icon-btn" title="Save search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <button class="action-icon-btn" title="Export">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <button class="action-icon-btn" title="Grid view">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════ MAIN 3-COLUMN LAYOUT ════════════════ -->
+<div class="main-layout">
+
+  <!-- ── Left: Filters ────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Filters</span>
+    </div>
+    <div class="sidebar-subtitle">Refine your search</div>
+
+    <button class="add-filter-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ca8a04" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add More Filters
+    </button>
+
+    <!-- Tax Type -->
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-header-label">Tax Type</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> VAT <span class="filter-count">312</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Income Tax / CIT <span class="filter-count">248</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Customs Duty <span class="filter-count">87</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Capital Gains Tax <span class="filter-count">34</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Transfer Pricing <span class="filter-count">28</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Excise Duty <span class="filter-count">51</span></label>
+        <button class="filter-show-more">Show 5 more...</button>
+      </div>
+    </div>
+
+    <!-- Disposition -->
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-header-label">Disposition</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> Dismissed <span class="filter-count">341</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Allowed <span class="filter-count">198</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Partially Allowed <span class="filter-count">127</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Struck Out <span class="filter-count">94</span></label>
+      </div>
+    </div>
+
+    <!-- Prevailing Party -->
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-header-label">Prevailing Party</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> Respondent (KRA) <span class="filter-count">435</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Appellant (Taxpayer) <span class="filter-count">198</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Split <span class="filter-count">127</span></label>
+      </div>
+    </div>
+
+    <!-- Tax Issue Category -->
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-header-label">Tax Issue Category</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> Assessment Dispute <span class="filter-count">402</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Classification Dispute <span class="filter-count">98</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Valuation Dispute <span class="filter-count">64</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Procedural <span class="filter-count">156</span></label>
+        <button class="filter-show-more">Show 8 more...</button>
+      </div>
+    </div>
+
+    <!-- Taxpayer Classification -->
+    <div class="filter-section collapsed">
+      <div class="filter-header">
+        <span class="filter-header-label">Taxpayer Classification</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> Corporation <span class="filter-count">512</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Individual <span class="filter-count">143</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Partnership <span class="filter-count">38</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Government Entity <span class="filter-count">21</span></label>
+      </div>
+    </div>
+
+    <!-- Decision Year -->
+    <div class="filter-section collapsed">
+      <div class="filter-header">
+        <span class="filter-header-label">Decision Year</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> 2026 <span class="filter-count">87</span></label>
+        <label class="filter-option"><input type="checkbox" checked> 2025 <span class="filter-count">294</span></label>
+        <label class="filter-option"><input type="checkbox" checked> 2024 <span class="filter-count">251</span></label>
+        <label class="filter-option"><input type="checkbox" checked> 2023 <span class="filter-count">215</span></label>
+      </div>
+    </div>
+
+    <!-- Disputed Amount Range -->
+    <div class="filter-section collapsed">
+      <div class="filter-header">
+        <span class="filter-header-label">Disputed Amount</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="filter-options">
+        <label class="filter-option"><input type="checkbox" checked> Under KES 10M <span class="filter-count">298</span></label>
+        <label class="filter-option"><input type="checkbox" checked> KES 10M &ndash; 100M <span class="filter-count">312</span></label>
+        <label class="filter-option"><input type="checkbox" checked> KES 100M &ndash; 1B <span class="filter-count">164</span></label>
+        <label class="filter-option"><input type="checkbox" checked> Over KES 1B <span class="filter-count">73</span></label>
+      </div>
+    </div>
+
+    <div class="apply-filter-bar">
+      <button class="apply-btn apply-btn-primary">Apply Filters</button>
+      <button class="apply-btn apply-btn-secondary">Reset</button>
+    </div>
+  </aside>
+
+  <!-- ── Center: Results ──────────────────────────── -->
+  <main class="results-area">
+
+    <!-- Suggested filters row -->
+    <div class="suggested-filters">
+      <span class="suggested-label">Suggested Filters</span>
+      <span class="suggested-chip active-chip">Tax Appeals Tribunal</span>
+      <span class="suggested-chip">VAT Disputes</span>
+      <span class="suggested-chip">Transfer Pricing</span>
+      <span class="suggested-chip">Customs Duty</span>
+      <span class="suggested-chip">Income Tax</span>
+      <span class="suggested-chip">Taxpayer Won</span>
+    </div>
+
+    <div class="result-count"><strong>847</strong> Results</div>
+
+    <!-- ── Card 1: Adarsh Limited ── -->
+    <div class="result-card" id="card-1">
+      <div class="card-header">
+        <div>
+          <div class="card-title">TAT e1314/2024: Adarsh Limited vs Commissioner of Customs and Border Control</div>
+        </div>
+        <div class="card-header-actions">
+          <button class="card-report-btn" onclick="toggleReportItem('card-1', 'Adarsh Limited vs Commissioner of Customs')" title="Add to report">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <span>Add to Report</span>
+          </button>
+          <button class="card-open-btn">
+            Open
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-fields">
+        <div class="card-field">
+          <div class="card-field-label">Court</div>
+          <div class="card-field-value">Tax Appeals Tribunal</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Tax Type</div>
+          <div class="card-field-value">Customs Duty</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Decision Date</div>
+          <div class="card-field-value">2025 October 15</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disposition</div>
+          <div class="card-field-value" style="color:#b91c1c;font-weight:600;">Dismissed</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disputed Amount</div>
+          <div class="card-field-value">KES 28,923,698</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Prevailing Party</div>
+          <div class="card-field-value">Respondent (KRA)</div>
+        </div>
+      </div>
+      <div class="card-fields" style="padding-top: 0;">
+        <div class="card-field" style="grid-column: span 3;">
+          <div class="card-field-label">Key Issue</div>
+          <div class="card-field-value truncate">Short-levied customs duties following post-clearance audit. Dispute over ICMS system misconfiguration and applicable duty rates under Legal Notices EAC/129/2023 and EAC/147/2024.</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-footer-field">Background <span class="plus">+</span></span>
+        <span class="card-footer-field">Issues <span class="plus">+</span></span>
+        <span class="card-footer-field">Findings <span class="plus">+</span></span>
+        <span class="card-footer-field">Decision <span class="plus">+</span></span>
+        <span class="card-footer-field">Cited Statute <span class="plus">+</span></span>
+        <span class="card-footer-more">&raquo;</span>
+        <button class="edit-card-btn">
+          Edit Card
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Card 2: Jacaranda Gardens ── -->
+    <div class="result-card" id="card-2">
+      <div class="card-header">
+        <div>
+          <div class="card-title">TAT e1294/2024: Jacaranda Gardens Management Company Limited vs Commissioner of Domestic Taxes</div>
+        </div>
+        <div class="card-header-actions">
+          <button class="card-report-btn" onclick="toggleReportItem('card-2', 'Jacaranda Gardens vs Commissioner')" title="Add to report">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <span>Add to Report</span>
+          </button>
+          <button class="card-open-btn">
+            Open
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-fields">
+        <div class="card-field">
+          <div class="card-field-label">Court</div>
+          <div class="card-field-value">Tax Appeals Tribunal</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Tax Type</div>
+          <div class="card-field-value">VAT / Corporation Tax</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Decision Date</div>
+          <div class="card-field-value">2025 October 28</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disposition</div>
+          <div class="card-field-value" style="color:#047857;font-weight:600;">Allowed</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disputed Amount</div>
+          <div class="card-field-value">KES 12,500,000</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Prevailing Party</div>
+          <div class="card-field-value">Appellant (Taxpayer)</div>
+        </div>
+      </div>
+      <div class="card-fields" style="padding-top: 0;">
+        <div class="card-field" style="grid-column: span 3;">
+          <div class="card-field-label">Key Issue</div>
+          <div class="card-field-value truncate">Treatment of interbank transfers, reversals, and water bill payments as taxable income. Respondent erroneously treated non-revenue items as income subject to Corporation Tax and VAT.</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-footer-field">Background <span class="plus">+</span></span>
+        <span class="card-footer-field">Issues <span class="plus">+</span></span>
+        <span class="card-footer-field">Findings <span class="plus">+</span></span>
+        <span class="card-footer-field">Decision <span class="plus">+</span></span>
+        <span class="card-footer-field">Cited Statute <span class="plus">+</span></span>
+        <span class="card-footer-more">&raquo;</span>
+        <button class="edit-card-btn">
+          Edit Card
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Card 3: Delmonte Kenya (Transfer Pricing) ── -->
+    <div class="result-card" id="card-3">
+      <div class="card-header">
+        <div>
+          <div class="card-title">TAT e504/2025: Delmonte Kenya Limited vs Commissioner Legal Services and Board Co-ordination</div>
+        </div>
+        <div class="card-header-actions">
+          <button class="card-report-btn" onclick="toggleReportItem('card-3', 'Delmonte Kenya vs Commissioner')" title="Add to report">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <span>Add to Report</span>
+          </button>
+          <button class="card-open-btn">
+            Open
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-fields">
+        <div class="card-field">
+          <div class="card-field-label">Court</div>
+          <div class="card-field-value">Tax Appeals Tribunal</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Tax Type</div>
+          <div class="card-field-value">Income Tax (Transfer Pricing)</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Decision Date</div>
+          <div class="card-field-value">2025 October</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disposition</div>
+          <div class="card-field-value" style="color:#b91c1c;font-weight:600;">Dismissed</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Disputed Amount</div>
+          <div class="card-field-value">KES 4,959,226,516</div>
+        </div>
+        <div class="card-field">
+          <div class="card-field-label">Prevailing Party</div>
+          <div class="card-field-value">Respondent (KRA)</div>
+        </div>
+      </div>
+      <div class="card-fields" style="padding-top: 0;">
+        <div class="card-field" style="grid-column: span 3;">
+          <div class="card-field-label">Key Issue</div>
+          <div class="card-field-value truncate">Transfer pricing audit for 2019-2021. Dispute over functional analysis, TNMM vs CUP methodology, ownership of DMF B.V., recharged costs, and intercompany loan terms from parent entity.</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-footer-field">Background <span class="plus">+</span></span>
+        <span class="card-footer-field">Issues <span class="plus">+</span></span>
+        <span class="card-footer-field">Findings <span class="plus">+</span></span>
+        <span class="card-footer-field">Decision <span class="plus">+</span></span>
+        <span class="card-footer-field">Cited Statute <span class="plus">+</span></span>
+        <span class="card-footer-more">&raquo;</span>
+        <button class="edit-card-btn">
+          Edit Card
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Right: Preview panel ─────────────────────── -->
+  <aside class="preview-panel">
+    <div class="preview-title">TAT e1314/2024: Adarsh Limited vs Commissioner of Customs and Border Control</div>
+
+    <div class="preview-section-label">Background</div>
+    <p class="preview-text">
+      Adarsh Limited, a Kenyan import trading company, challenged a demand for short-levied duties amounting to Kshs 28,923,698 issued by the Commissioner of Customs and Border Control following a post-clearance audit. The dispute arose from the application of duty rates under the Integrated Customs Management System (ICMS), which allegedly failed to reflect the correct rates as per the East African Community Common External Tariff (EAC CET) and Legal Notices EAC/129/2023 and EAC/147/2024.
+    </p>
+
+    <div class="preview-section-label">Issues for Determination</div>
+    <p class="preview-text">
+      Whether the Respondent was justified in demanding the short-levied taxes. Whether the Respondent acted within a reasonable timeframe in issuing the demand for short-levied taxes.
+    </p>
+
+    <div class="preview-section-label">Tribunal Findings</div>
+    <p class="preview-text">
+      The Tribunal found that the Respondent was justified in demanding the short-levied taxes under Section 135(1) of EACCMA. It determined that the demand was issued within a reasonable timeframe of 1 year and 2 months after the initial duty payment. The Tribunal concluded that the Appellant failed to exercise due diligence in verifying the duty rates and could not rely on the principle of legitimate expectation to avoid paying the short-levied taxes.
+    </p>
+
+    <div class="preview-section-label">Decision</div>
+    <p class="preview-text">
+      The Tribunal dismissed the Appeal, upheld the Respondent's Review Decision dated 11th December 2024, and ordered each party to bear its own costs.
+    </p>
+  </aside>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     REPORT COLLECTOR BAR (slides up from bottom)
+     ══════════════════════════════════════════════════ -->
+<div class="report-collector" id="reportCollector">
+  <div class="rc-icon">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  </div>
+  <div class="rc-info">
+    <span class="rc-count" id="rcCount">0 documents selected</span>
+    <span class="rc-hint">Select documents to include in a report</span>
+  </div>
+  <div class="rc-pills" id="rcPills"></div>
+  <button class="rc-clear-btn" onclick="clearAllReportItems()">Clear all</button>
+  <button class="rc-build-btn" onclick="openReportOverlay()">
+    Build Report
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     REPORT BUILDER OVERLAY (slides in from right)
+     ══════════════════════════════════════════════════ -->
+<div class="report-overlay" id="reportOverlay">
+
+  <!-- Overlay header -->
+  <div class="ro-header">
+    <button class="ro-back-btn" onclick="closeReportOverlay()">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to Results
+    </button>
+    <div class="ro-title">
+      <div class="ro-title-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      Report Builder
+    </div>
+    <span style="font-size:12px;color:#94a3b8;margin-left:8px;" id="roSelectedCount">0 documents</span>
+  </div>
+
+  <!-- Report stepper -->
+  <div class="ro-stepper">
+    <div class="ro-step active" data-step="1" onclick="goToReportStep(1)">
+      <span class="ro-step-num">1</span>
+      <span class="ro-step-label">Configure Report</span>
+    </div>
+    <div class="ro-step-connector" id="roConnector1"></div>
+    <div class="ro-step" data-step="2" onclick="goToReportStep(2)">
+      <span class="ro-step-num">2</span>
+      <span class="ro-step-label">Preview &amp; Export</span>
+    </div>
+    <div class="ro-stepper-actions">
+      <button class="ro-btn ro-btn-secondary" id="roBtnPrev" onclick="prevReportStep()" disabled>&larr; Back</button>
+      <button class="ro-btn ro-btn-primary" id="roBtnNext" onclick="nextReportStep()">Preview &amp; Export &rarr;</button>
+    </div>
+  </div>
+
+  <!-- Report body -->
+  <div class="ro-body">
+
+    <!-- ── Step 1: Configure ── -->
+    <div class="ro-page active" id="roStep1">
+      <div class="config-layout">
+        <div class="config-left">
+          <div class="config-left-scroll">
+
+            <!-- Report details -->
+            <div class="config-section">
+              <div class="config-section-title"><span class="cs-num">A</span> Report Details</div>
+              <div class="form-group">
+                <label>Report Title</label>
+                <input type="text" id="reportTitle" value="TAT Summaries" oninput="renderDocPreview()" />
+              </div>
+              <div class="form-group">
+                <label>Subtitle / Edition</label>
+                <input type="text" id="reportSubtitle" value="January 2026 Edition" oninput="renderDocPreview()" />
+              </div>
+              <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+                <label style="margin-bottom:0;">Show JibuDocs Branding</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="showBranding" checked onchange="renderDocPreview()" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Report sections -->
+            <div class="config-section">
+              <div class="config-section-title"><span class="cs-num">B</span> Report Sections</div>
+              <p style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Toggle sections ON/OFF. Drag to reorder.</p>
+              <div id="sectionList"></div>
+            </div>
+
+            <!-- Metadata fields -->
+            <div class="config-section">
+              <div class="config-section-title"><span class="cs-num">C</span> Metadata Fields</div>
+              <p style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Choose which fields appear on each case.</p>
+              <input type="text" class="field-search-mini" id="fieldSearchInput" placeholder="Search fields..." oninput="filterFieldPills()" />
+              <div id="fieldPillContainer"></div>
+            </div>
+
+          </div>
+        </div>
+        <!-- Live preview -->
+        <div class="config-right">
+          <div class="doc-page" id="docPageStep1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Preview & Export ── -->
+    <div class="ro-page" id="roStep2">
+      <div class="preview-layout">
+        <div class="preview-sidebar">
+          <div class="preview-sidebar-header">
+            <h3>Report Summary</h3>
+          </div>
+          <div class="preview-sidebar-scroll">
+            <div style="padding:4px 0;" id="previewSummary"></div>
+            <div style="margin-top:16px;">
+              <div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">Export Options</div>
+              <div class="export-list">
+                <div class="export-btn" onclick="printReport()">
+                  <div class="export-icon" style="background:#fee2e2;color:#b91c1c;">PDF</div>
+                  <div>
+                    <div class="export-label">Export as PDF</div>
+                    <div class="export-desc">Print to PDF via browser</div>
+                  </div>
+                </div>
+                <div class="export-btn" onclick="alert('In production, this generates a .docx via the JibuDocs API.')">
+                  <div class="export-icon" style="background:#dbeafe;color:#1e40af;">DOC</div>
+                  <div>
+                    <div class="export-label">Export as DOCX</div>
+                    <div class="export-desc">Download Word document</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-main">
+          <div class="doc-page" id="docPageStep2"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════ SCRIPTS ════════════════ -->
+<script>
+  // ══════════════════════════════════════════════
+  // STATE
+  // ══════════════════════════════════════════════
+  const reportItems = new Map(); // cardId -> label
+  let reportStep = 1;
+
+  // Report configuration
+  const REPORT_SECTIONS = [
+    { id: 'background',  label: 'Background',              enabled: true },
+    { id: 'issues',      label: 'Issues for Determination', enabled: true },
+    { id: 'appellant',   label: "Appellant's Argument",     enabled: true },
+    { id: 'respondent',  label: "Respondent's Argument",    enabled: true },
+    { id: 'findings',    label: 'Tribunal Findings',        enabled: true },
+    { id: 'decision',    label: "Tribunal's Decision",      enabled: true },
+  ];
+  let sections = REPORT_SECTIONS.map(s => ({...s}));
+
+  const FIELD_CATEGORIES = {
+    'Case Info': ['Court','Court Level','Decision Date','Decision Type','Jurisdiction','Judge Name','Disposition','Prevailing Party'],
+    'Parties': ['Plaintiff Name','Plaintiff Type','Plaintiff Law Firm','Defendant Name','Defendant Type','Defendant Law Firm'],
+    'Tax': ['Tax Type','Tax Issue Category','Tax Years','Taxpayer Classification','Revenue Authority'],
+    'Financial': ['Disputed Tax Amount','Penalty Amount','Interest Amount','Monetary Damages'],
+    'Legal': ['Issues','Holdings','Key Facts','Legal Principles','Legal Topics','Overview','Remedies'],
+    'Precedent': ['Precedent Citation','Precedent Name','Cited Statute','Statute Citation']
+  };
+  let selectedMetaFields = ['Tax Type','Disputed Tax Amount','Disposition','Prevailing Party'];
+
+  // Real TAT case data extracted from actual reports
+  const SAMPLE_CASES = {
+    'card-1': {
+      parties: 'ADARSH LIMITED VS COMMISSIONER OF CUSTOMS AND BORDER CONTROL',
+      caseRef: 'TAT e1314/2024',
+      'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October 15',
+      'Tax Type': 'Customs Duty', 'Tax Issue Category': 'Assessment Dispute',
+      'Disposition': 'Dismissed', 'Prevailing Party': 'Respondent (KRA)',
+      'Disputed Tax Amount': 'KES 28,923,698', 'Penalty Amount': 'KES 4,338,555',
+      'Taxpayer Classification': 'Large Taxpayer', 'Revenue Authority': 'KRA - Customs',
+      'Cited Statute': 'EACCMA Section 135(1)', 'Jurisdiction': 'Nairobi',
+      background: "Adarsh Limited, a Kenyan import trading company, challenged a demand for short-levied duties amounting to Kshs 28,923,698 issued by the Commissioner of Customs and Border Control following a post-clearance audit. The dispute arose from the application of duty rates under the Integrated Customs Management System (ICMS), which allegedly failed to reflect the correct rates as per the East African Community Common External Tariff (EAC CET) and Legal Notices EAC/129/2023 and EAC/147/2024. The Appellant argued that it had paid duties in good faith based on the ICMS configuration at the time of importation, while the Respondent contended that the Appellant should have ensured compliance with the updated duty rates.",
+      issues: "Whether the Respondent was justified in demanding the short-levied taxes. Whether the Respondent acted within a reasonable timeframe in issuing the demand for short-levied taxes.",
+      appellant: "The Appellant argued that the demand for additional duties was erroneous, punitive, and unreasonable, as it relied on the ICMS system configured by the Respondent to calculate and pay duties at the time of importation. The Appellant claimed that the Respondent failed to update the ICMS system to reflect the correct duty rates and breached the principle of legitimate expectation. The Appellant also cited legal precedents, including Civil Appeal No. 67 of 2017 (Krish Commodity Limited vs Kenya Revenue Authority), to support its position.",
+      respondent: "The Respondent argued that the duty rate of 35% or USD 1,500 per metric tonne, whichever is higher, was applicable as per Legal Notices EAC/129/2023 and EAC/147/2024. It asserted that the ICMS system had been updated to reflect these rates and that the Appellant was responsible for ensuring compliance. The Respondent emphasized its statutory authority under Sections 94, 135(1), 235, and 236 of the East African Community Customs Management Act (EACCMA).",
+      findings: "The Tribunal found that the Respondent was justified in demanding the short-levied taxes under Section 135(1) of EACCMA. It determined that the demand was issued within a reasonable timeframe of 1 year and 2 months after the initial duty payment, which was not deemed irrational or unfair. The Tribunal concluded that the Appellant failed to exercise due diligence in verifying the duty rates and could not rely on the principle of legitimate expectation to avoid paying the short-levied taxes.",
+      decision: "The Tribunal dismissed the Appeal, upheld the Respondent\u2019s Review Decision dated 11th December 2024, and ordered each party to bear its own costs.",
+    },
+    'card-2': {
+      parties: 'JACARANDA GARDENS MANAGEMENT COMPANY LIMITED VS COMMISSIONER OF DOMESTIC TAXES',
+      caseRef: 'TAT e1294/2024',
+      'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October 28',
+      'Tax Type': 'VAT / Corporation Tax', 'Tax Issue Category': 'Classification Dispute',
+      'Disposition': 'Allowed', 'Prevailing Party': 'Appellant (Taxpayer)',
+      'Disputed Tax Amount': 'KES 12,500,000', 'Penalty Amount': 'KES 1,875,000',
+      'Taxpayer Classification': 'Medium Taxpayer', 'Revenue Authority': 'KRA - Domestic Taxes',
+      'Cited Statute': 'VAT Act, 2013 Section 13(5)', 'Jurisdiction': 'Nairobi',
+      background: "The Appellant, Jacaranda Gardens Management Company Limited, is a management company formed by homeowners of Jacaranda Gardens Estate to centralize procurement of essential services for the residential community. The Respondent, Commissioner of Domestic Taxes, conducted a tax audit for the years 2018 to 2022 and issued additional tax assessments for VAT and Corporation Tax. The Appellant objected to the assessments, arguing that the Respondent erroneously treated non-revenue items such as interbank transfers, water bills, and reversals as taxable income, disallowed legitimate expenses, and misapplied VAT on third-party disbursements.",
+      issues: "Whether the Respondent was justified in assessing and confirming Corporation Tax. Whether the Respondent was justified in assessing and confirming VAT.",
+      appellant: "The Appellant argued that the Respondent erred in treating interbank transfers, reversals, and water bill payments as taxable income, leading to double taxation and incorrect assessments. It contended that these items were non-revenue and supported its position with bank statements and other financial documents. The Appellant also claimed that the Respondent disallowed legitimate expenses such as salaries, wages, and security costs, and argued that third-party disbursements for services like garbage collection, security, and maintenance were not vatable under Section 13(5) of the VAT Act.",
+      respondent: "The Respondent maintained that the Appellant failed to provide sufficient documentation to support its claims regarding interbank transfers, water bills, and other non-revenue items. It argued that all bank deposits were income and subject to Corporation Tax. The Respondent also contended that the Appellant\u2019s management services constituted vatable supplies under Section 5 of the VAT Act and relied on the banking analysis method to assess the Appellant\u2019s tax liability.",
+      findings: "The Tribunal found that the Appellant provided sufficient documentation to demonstrate that interbank transfers, reversals, and water bill payments were non-revenue items and should not have been treated as taxable income. The Tribunal also determined that the Respondent failed to adequately analyze the Appellant\u2019s bank statements. Regarding VAT, the Tribunal held that third-party disbursements for services like garbage collection and security were not vatable under Section 13(5) of the VAT Act.",
+      decision: "The Tribunal allowed the Appeal, set aside the Respondent\u2019s Objection Decision dated 26th September 2024, and ordered each party to bear its own costs.",
+    },
+    'card-3': {
+      parties: 'DELMONTE KENYA LIMITED VS COMMISSIONER LEGAL SERVICES AND BOARD CO-ORDINATION',
+      caseRef: 'TAT e504/2025',
+      'Court': 'Tax Appeals Tribunal', 'Court Level': 'Tribunal', 'Decision Date': '2025 October',
+      'Tax Type': 'Income Tax (Transfer Pricing)', 'Tax Issue Category': 'Transfer Pricing',
+      'Disposition': 'Dismissed', 'Prevailing Party': 'Respondent (KRA)',
+      'Disputed Tax Amount': 'KES 4,959,226,516', 'Penalty Amount': '\u2014',
+      'Taxpayer Classification': 'Large Taxpayer', 'Revenue Authority': 'KRA',
+      'Cited Statute': 'Income Tax Act, Transfer Pricing Rules', 'Jurisdiction': 'Nairobi',
+      background: "Delmonte Kenya Limited, engaged in pineapple cultivation and processing, was audited by the Kenya Revenue Authority (KRA) for transfer pricing compliance for the period 2019-2021. KRA issued additional income tax assessments amounting to Kshs. 4,863,801,636.00, later confirmed at Kshs. 4,959,226,516.00 after the Appellant\u2019s objection. The Appellant challenged the assessments, arguing errors in functional analysis, transfer pricing methodology, and disallowance of recharges and interest expenses.",
+      issues: "Ownership of DMF B.V. (whether wholly owned by DMI GmbH or Fresh Delmonte Produce Inc.). Accuracy of the Appellant\u2019s Functional Assets and Risk (FAR) analysis. Appropriateness of the transfer pricing method employed by the Appellant. Provision of supporting documentation for recharged costs. Arm\u2019s length nature of the intercompany loan terms from DMF B.V.",
+      appellant: "The Appellant argued that DMF B.V. is owned by Fresh Delmonte Produce Inc., not DMI GmbH. It claimed its FAR analysis was accurate, attributing significant functions, assets, and risks to DMI GmbH. The Appellant defended its use of the Transactional Net Margin Method (TNMM) with Full Cost Mark-Up (FCMU) as appropriate for determining arm\u2019s length pricing. It also asserted that recharged costs and interest expenses were valid business expenses supported by documentation.",
+      respondent: "The Respondent contended that DMF B.V. is wholly owned by DMI GmbH and disputed the Appellant\u2019s FAR analysis, attributing most functions, assets, and risks to the Appellant. It argued that the TNMM method was inappropriate, as DMI GmbH should have been the tested party. The Respondent disallowed recharged costs and interest expenses due to insufficient documentation and questioned the commercial rationality of the intercompany loan arrangement.",
+      findings: "The Tribunal found that DMF B.V. is wholly owned by DMI GmbH, and the Appellant failed to prove otherwise. It held that the Appellant\u2019s FAR analysis was inaccurate, attributing most functions, assets, and risks to the Appellant. The Tribunal determined that the TNMM method was inappropriate, as DMI GmbH was the less complex party and should have been the tested party. It upheld the Respondent\u2019s disallowance of recharged costs and interest expenses.",
+      decision: "The Tribunal dismissed the appeal, upheld the Respondent\u2019s objection decision dated 17th March, 2025, and ordered each party to bear its own costs.",
+    },
+  };
+
+  // ══════════════════════════════════════════════
+  // REPORT ITEM SELECTION (on search results)
+  // ══════════════════════════════════════════════
+  function toggleReportItem(cardId, label) {
+    if (reportItems.has(cardId)) {
+      reportItems.delete(cardId);
+    } else {
+      reportItems.set(cardId, label);
+    }
+    updateReportUI();
+  }
+
+  function clearAllReportItems() {
+    reportItems.clear();
+    updateReportUI();
+  }
+
+  function updateReportUI() {
+    const count = reportItems.size;
+
+    // Update card button states
+    document.querySelectorAll('.result-card').forEach(card => {
+      const id = card.id;
+      const btn = card.querySelector('.card-report-btn');
+      const isSelected = reportItems.has(id);
+      card.classList.toggle('report-selected', isSelected);
+      if (btn) {
+        btn.classList.toggle('added', isSelected);
+        btn.querySelector('span').textContent = isSelected ? 'Added' : 'Add to Report';
+        // Switch icon to checkmark when added
+        btn.querySelector('svg').innerHTML = isSelected
+          ? '<polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+          : '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>';
+      }
+    });
+
+    // Update collector bar
+    const collector = document.getElementById('reportCollector');
+    collector.classList.toggle('visible', count > 0);
+    document.getElementById('rcCount').textContent = `${count} document${count !== 1 ? 's' : ''} selected`;
+
+    // Update pills
+    const pillsEl = document.getElementById('rcPills');
+    pillsEl.innerHTML = '';
+    reportItems.forEach((label, id) => {
+      const pill = document.createElement('span');
+      pill.className = 'rc-pill';
+      pill.innerHTML = `${esc(label)} <span class="rc-pill-remove" onclick="event.stopPropagation();toggleReportItem('${id}', '${esc(label)}')">&times;</span>`;
+      pillsEl.appendChild(pill);
+    });
+
+    // Update overlay count
+    document.getElementById('roSelectedCount').textContent = `${count} document${count !== 1 ? 's' : ''}`;
+  }
+
+  // ══════════════════════════════════════════════
+  // REPORT OVERLAY
+  // ══════════════════════════════════════════════
+  function openReportOverlay() {
+    if (reportItems.size === 0) {
+      showToast('Add at least one document to your report first');
+      return;
+    }
+    document.getElementById('reportOverlay').classList.add('open');
+    buildSectionToggles();
+    buildFieldPills();
+    renderDocPreview();
+  }
+
+  function closeReportOverlay() {
+    document.getElementById('reportOverlay').classList.remove('open');
+  }
+
+  // ══════════════════════════════════════════════
+  // REPORT STEPPER
+  // ══════════════════════════════════════════════
+  function goToReportStep(step) {
+    if (step < 1 || step > 2) return;
+    reportStep = step;
+    document.querySelectorAll('.ro-page').forEach((p, i) => {
+      p.classList.toggle('active', i + 1 === step);
+    });
+    document.querySelectorAll('.ro-step').forEach(s => {
+      const sn = parseInt(s.dataset.step);
+      s.classList.remove('active', 'completed');
+      if (sn === step) s.classList.add('active');
+      else if (sn < step) s.classList.add('completed');
+    });
+    document.getElementById('roConnector1').classList.toggle('done', step > 1);
+    document.getElementById('roBtnPrev').disabled = step === 1;
+    document.getElementById('roBtnNext').textContent = step === 1 ? 'Preview & Export \u2192' : 'Done';
+    if (step === 2) {
+      renderDocPreview();
+      renderPreviewSummary();
+    }
+  }
+
+  function nextReportStep() {
+    if (reportStep === 2) {
+      closeReportOverlay();
+      return;
+    }
+    goToReportStep(reportStep + 1);
+  }
+
+  function prevReportStep() {
+    goToReportStep(reportStep - 1);
+  }
+
+  // ══════════════════════════════════════════════
+  // CONFIGURE: Section Toggles
+  // ══════════════════════════════════════════════
+  function buildSectionToggles() {
+    const list = document.getElementById('sectionList');
+    list.innerHTML = sections.map((s, i) => `
+      <div class="section-toggle-item" draggable="true" data-index="${i}"
+           ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropItem(event)" ondragend="dragEnd(event)">
+        <span class="drag-handle">\u2630</span>
+        <span class="toggle-label">${s.label}</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="sections[${i}].enabled=this.checked;renderDocPreview()" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    `).join('');
+  }
+
+  let dragIdx = null;
+  function dragStart(e) { dragIdx = parseInt(e.currentTarget.dataset.index); e.dataTransfer.effectAllowed = 'move'; }
+  function dragOver(e) { e.preventDefault(); }
+  function dropItem(e) {
+    e.preventDefault();
+    const di = parseInt(e.currentTarget.dataset.index);
+    if (dragIdx !== null && dragIdx !== di) {
+      const item = sections.splice(dragIdx, 1)[0];
+      sections.splice(di, 0, item);
+      buildSectionToggles();
+      renderDocPreview();
+    }
+  }
+  function dragEnd() { dragIdx = null; }
+
+  // ══════════════════════════════════════════════
+  // CONFIGURE: Field Pills
+  // ══════════════════════════════════════════════
+  function buildFieldPills() {
+    const container = document.getElementById('fieldPillContainer');
+    let html = '';
+    for (const [cat, fields] of Object.entries(FIELD_CATEGORIES)) {
+      html += `<div class="field-category">${cat}</div><div class="field-pill-list">`;
+      fields.forEach(f => {
+        html += `<span class="field-pill ${selectedMetaFields.includes(f) ? 'selected' : ''}" data-field="${f}" onclick="toggleMetaField(this,'${esc(f)}')">${f}</span>`;
+      });
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function toggleMetaField(el, field) {
+    const idx = selectedMetaFields.indexOf(field);
+    if (idx > -1) { selectedMetaFields.splice(idx, 1); el.classList.remove('selected'); }
+    else { selectedMetaFields.push(field); el.classList.add('selected'); }
+    renderDocPreview();
+  }
+
+  function filterFieldPills() {
+    const q = document.getElementById('fieldSearchInput').value.toLowerCase();
+    document.querySelectorAll('#fieldPillContainer .field-pill').forEach(el => {
+      el.style.display = el.dataset.field.toLowerCase().includes(q) ? '' : 'none';
+    });
+    document.querySelectorAll('#fieldPillContainer .field-category').forEach(cat => {
+      const list = cat.nextElementSibling;
+      const vis = [...list.querySelectorAll('.field-pill')].some(p => p.style.display !== 'none');
+      cat.style.display = vis ? '' : 'none';
+      list.style.display = vis ? '' : 'none';
+    });
+  }
+
+  // ══════════════════════════════════════════════
+  // DOCUMENT PREVIEW
+  // ══════════════════════════════════════════════
+  function renderDocPreview() {
+    const html = buildDocHtml();
+    const p1 = document.getElementById('docPageStep1');
+    const p2 = document.getElementById('docPageStep2');
+    if (p1) p1.innerHTML = html;
+    if (p2) p2.innerHTML = html;
+  }
+
+  function buildDocHtml() {
+    const title = document.getElementById('reportTitle')?.value || 'Untitled Report';
+    const subtitle = document.getElementById('reportSubtitle')?.value || '';
+    const branding = document.getElementById('showBranding')?.checked ?? true;
+    const enabledSections = sections.filter(s => s.enabled);
+
+    // Get selected cases
+    const cases = [];
+    reportItems.forEach((label, id) => {
+      if (SAMPLE_CASES[id]) cases.push(SAMPLE_CASES[id]);
+    });
+
+    let h = '<div class="doc-header">';
+    if (branding) h += '<div class="doc-brand"><div class="doc-brand-icon">J</div><span class="doc-brand-name">JibuDocs</span></div>';
+    h += `<div class="doc-title">${esc(title)}</div>`;
+    if (subtitle) h += `<div class="doc-subtitle">${esc(subtitle)}</div>`;
+    h += `<div class="doc-meta">Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} \u00B7 ${cases.length} document${cases.length !== 1 ? 's' : ''}</div></div>`;
+
+    if (cases.length === 0) {
+      h += '<div style="text-align:center;padding:60px 20px;color:#9ca3af;">';
+      h += '<p style="font-size:14px;margin-bottom:6px;">No documents selected yet.</p>';
+      h += '<p style="font-size:12px;">Go back to search results to add documents to your report.</p></div>';
+    }
+
+    cases.forEach((c, idx) => {
+      h += '<div class="case-block">';
+      h += `<div class="case-title">${esc(c.caseRef || '')}: ${esc(c.parties || '')}</div>`;
+
+      if (selectedMetaFields.length > 0) {
+        h += '<div class="case-meta-grid">';
+        selectedMetaFields.forEach(f => {
+          if (c[f] !== undefined) {
+            h += `<div class="case-meta-item"><span class="meta-label">${esc(f)}</span><span class="meta-value">${esc(c[f] || '\u2014')}</span></div>`;
+          }
+        });
+        h += '</div>';
+      }
+
+      enabledSections.forEach(s => {
+        if (c[s.id]) {
+          h += `<div class="case-section"><div class="case-section-title">${esc(s.label)}</div><div class="case-section-body">${esc(c[s.id])}</div></div>`;
+        }
+      });
+      h += '</div>';
+      if (idx < cases.length - 1) h += '<hr class="case-separator" />';
+    });
+
+    h += '<div class="doc-footer"><span>JibuDocs \u00B7 AI-Enabled Document Management</span><span>Confidential</span></div>';
+    return h;
+  }
+
+  function renderPreviewSummary() {
+    const cases = [];
+    reportItems.forEach((label, id) => {
+      if (SAMPLE_CASES[id]) cases.push(SAMPLE_CASES[id]);
+    });
+    const enabled = sections.filter(s => s.enabled);
+    const el = document.getElementById('previewSummary');
+    el.innerHTML = `
+      <div class="summary-item"><span class="si-label">Documents</span><span class="si-value">${cases.length}</span></div>
+      <div class="summary-item"><span class="si-label">Sections per doc</span><span class="si-value">${enabled.length}</span></div>
+      <div class="summary-item"><span class="si-label">Metadata fields</span><span class="si-value">${selectedMetaFields.length}</span></div>
+      <div class="summary-item"><span class="si-label">Sections</span><span class="si-value" style="font-size:10px;text-align:right;">${enabled.map(s => s.label).join(', ')}</span></div>
+    `;
+  }
+
+  // ══════════════════════════════════════════════
+  // SEARCH PAGE INTERACTIONS
+  // ══════════════════════════════════════════════
+  // Filter section collapse toggle
+  document.querySelectorAll('.filter-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.closest('.filter-section').classList.toggle('collapsed');
+    });
+  });
+
+  // Read query from URL and fill search input
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  if (q) {
+    document.getElementById('mainSearch').value = q;
+  }
+
+  // ══════════════════════════════════════════════
+  // HELPERS
+  // ══════════════════════════════════════════════
+  function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+  // ── Toast helper ──────────────────────────────
+  function showToast(message) {
+    let toast = document.getElementById('appToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'appToast';
+      toast.className = 'toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('visible');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('visible'), 3000);
+  }
+
+  function printReport() {
+    const overlay = document.getElementById('reportOverlay');
+    overlay.classList.add('printing');
+    window.print();
+    overlay.classList.remove('printing');
+  }
+</script>
+</body>
+</html>
