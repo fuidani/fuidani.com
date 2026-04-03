@@ -177,15 +177,15 @@ export default function ReportPage() {
   const [includedCaseIds, setIncludedCaseIds] = useState(() =>
     new Set(caseEntries.slice(0, MAX_REPORT_DOCS).map((c) => c.id))
   );
-  const sourceContextLabel = isSelectionSource ? "Manual selection" : "Search-based report";
+  const sourceContextLabel = isSelectionSource ? "One-time export" : "Recurring subscription";
   const sourceLabel = isSelectionSource
-    ? `${caseEntries.length} selected document${caseEntries.length !== 1 ? "s" : ""}`
+    ? `${caseEntries.length} hand-picked document${caseEntries.length !== 1 ? "s" : ""}`
     : reportSource?.query
       ? `Search: "${reportSource.query}"`
       : "Current search";
   const headerCountLabel = isSelectionSource
     ? `${caseEntries.length} selected document${caseEntries.length !== 1 ? "s" : ""}`
-    : `${caseEntries.length} matching document${caseEntries.length !== 1 ? "s" : ""}`;
+    : `Subscription · ${caseEntries.length} document${caseEntries.length !== 1 ? "s" : ""}`;
   const canSubscribe = !isSelectionSource;
 
   const includedCases = useMemo(
@@ -215,8 +215,8 @@ export default function ReportPage() {
     });
   };
 
-  // Delivery state
-  const [deliveryMode, setDeliveryMode] = useState("one-off"); // "one-off" | "subscription"
+  // Delivery state — default to subscription for search-based, one-off for selection
+  const [deliveryMode, setDeliveryMode] = useState(isSelectionSource ? "one-off" : "subscription"); // "one-off" | "subscription"
   const [subscriptionFrequency, setSubscriptionFrequency] = useState("weekly"); // "weekly" | "monthly"
   const [deliveryMethod, setDeliveryMethod] = useState("folder"); // "folder" | "email"
 
@@ -287,19 +287,7 @@ export default function ReportPage() {
         </div>
         <span className={styles.headerCount}>{headerCountLabel}</span>
       </div>
-      <div className={styles.sourceBar}>
-        <div className={styles.sourceBarLabel}>Report Source</div>
-        <div className={styles.sourceBarMain}>
-          <span className={styles.sourceBarTitle}>{sourceLabel}</span>
-          <span className={styles.sourceBarDot}>•</span>
-          <span className={styles.sourceBarMeta}>{sourceContextLabel}</span>
-          <span className={styles.sourceBarDot}>•</span>
-          <span className={styles.sourceBarMeta}>{docTypeLabel}</span>
-        </div>
-        <span className={`${styles.sourceBadge} ${isSelectionSource ? styles.sourceBadgeSelection : styles.sourceBadgeSearch}`}>
-          {isSelectionSource ? "One-time only" : "Subscription-ready"}
-        </span>
-      </div>
+      {/* Mode indicator removed — shown in config panel instead */}
 
       {/* ── Stepper ── */}
       <div className={styles.stepper}>
@@ -350,6 +338,32 @@ export default function ReportPage() {
             {/* Left: Config */}
             <div className={styles.configLeft}>
               <div className={styles.configScroll}>
+                {/* Source Card — prominent mode indicator */}
+                <div className={`${styles.configSection} ${styles.sourceSection}`}>
+                  <div className={styles.sourceCard}>
+                    <div className={styles.sourceCardTop}>
+                      <div>
+                        <div className={styles.sourceEyebrow}>
+                          {isSelectionSource ? "One-Time Export" : "Search Subscription"}
+                        </div>
+                        <div className={styles.sourceTitle}>{sourceLabel}</div>
+                      </div>
+                      <span className={`${styles.sourceBadge} ${isSelectionSource ? styles.sourceBadgeSelection : styles.sourceBadgeSearch}`}>
+                        {isSelectionSource ? "One-time" : "Recurring"}
+                      </span>
+                    </div>
+                    <div className={styles.sourceMetaRow}>
+                      <span>{docTypeLabel}</span>
+                      <span>{sourceContextLabel}</span>
+                    </div>
+                    {!isSelectionSource && (
+                      <p className={styles.sourceNote}>
+                        This report will automatically include up to {MAX_REPORT_DOCS} of the most recent documents matching your search filters each time it is generated.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Report Details */}
                 <div className={`${styles.configSection} ${styles.reportDetailsSection}`}>
                   <div className={styles.configSectionTitle}>
@@ -480,24 +494,35 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Right: Live preview with remove buttons */}
+            {/* Right: Live preview */}
             <div className={styles.configRight}>
               <div className={styles.previewCanvas}>
-                <div className={styles.previewSourceBar}>
-                  <div className={styles.previewSourceTop}>
-                    <div className={styles.sourceBarLabel}>Report Source</div>
-                    <span className={`${styles.sourceBadge} ${isSelectionSource ? styles.sourceBadgeSelection : styles.sourceBadgeSearch}`}>
-                      {isSelectionSource ? "One-time only" : "Subscription-ready"}
-                    </span>
+                {!isSelectionSource && (
+                  <div className={styles.subscriptionPreviewBanner}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <div>
+                      <div className={styles.subscriptionBannerTitle}>Subscription Preview</div>
+                      <div className={styles.subscriptionBannerDesc}>
+                        Showing a sample of current results. Each report cycle will auto-select up to {MAX_REPORT_DOCS} most recent matching documents.
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.sourceBarMain}>
-                    <span className={styles.sourceBarTitle}>{sourceLabel}</span>
-                    <span className={styles.sourceBarDot}>•</span>
-                    <span className={styles.sourceBarMeta}>{sourceContextLabel}</span>
-                    <span className={styles.sourceBarDot}>•</span>
-                    <span className={styles.sourceBarMeta}>{docTypeLabel}</span>
+                )}
+                {isSelectionSource && (
+                  <div className={styles.previewSourceBar}>
+                    <div className={styles.previewSourceTop}>
+                      <div className={styles.sourceBarLabel}>Selected Documents</div>
+                      <span className={`${styles.sourceBadge} ${styles.sourceBadgeSelection}`}>
+                        One-time export
+                      </span>
+                    </div>
+                    <div className={styles.sourceBarMain}>
+                      <span className={styles.sourceBarTitle}>{sourceLabel}</span>
+                      <span className={styles.sourceBarDot}>•</span>
+                      <span className={styles.sourceBarMeta}>{docTypeLabel}</span>
+                    </div>
                   </div>
-                </div>
+                )}
                 <DocumentPreview
                   title={reportTitle}
                   subtitle={reportSubtitle}
@@ -514,53 +539,44 @@ export default function ReportPage() {
           /* ── Step 2: Save & Export ── */
           <div className={styles.deliveryLayout}>
             <div className={styles.deliveryPanel}>
-              {/* Report type choice */}
+              {/* Report type choice — tailored per mode */}
               <div className={styles.deliveryCard}>
-                <div className={styles.deliveryCardTitle}>Report Type</div>
-                <p className={styles.deliveryCardHint}>
-                  {canSubscribe
-                    ? "Choose whether to export this report once or turn the search into a recurring subscription."
-                    : "Selected-document reports are one-time only. Subscriptions require a saved search."}
-                </p>
-                <div className={styles.deliveryOptions}>
-                  <label className={`${styles.deliveryOption} ${deliveryMode === "one-off" ? styles.deliveryOptionSelected : ""}`}>
-                    <input type="radio" name="deliveryMode" value="one-off" checked={deliveryMode === "one-off"} onChange={() => selectDeliveryMode("one-off")} className={styles.deliveryRadio} />
-                    <div className={styles.deliveryOptionContent}>
-                      <div className={styles.deliveryOptionIcon}>
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </div>
-                      <div>
-                        <div className={styles.deliveryOptionLabel}>One-off Report</div>
-                        <div className={styles.deliveryOptionDesc}>
-                          {isSelectionSource
-                            ? `Download the ${includedCases.length} document${includedCases.length !== 1 ? "s" : ""} you selected`
-                            : `Download a snapshot of this search with ${includedCases.length} document${includedCases.length !== 1 ? "s" : ""}`}
-                        </div>
-                      </div>
-                    </div>
-                  </label>
-                  <label className={`${styles.deliveryOption} ${deliveryMode === "subscription" ? styles.deliveryOptionSelected : ""} ${!canSubscribe ? styles.deliveryOptionDisabled : ""}`}>
-                    <input type="radio" name="deliveryMode" value="subscription" checked={deliveryMode === "subscription"} onChange={() => selectDeliveryMode("subscription")} className={styles.deliveryRadio} disabled={!canSubscribe} />
-                    <div className={styles.deliveryOptionContent}>
-                      <div className={styles.deliveryOptionIcon}>
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                      </div>
-                      <div>
-                        <div className={styles.deliveryOptionLabel}>Subscription</div>
-                        <div className={styles.deliveryOptionDesc}>
-                          {canSubscribe
-                            ? "Automatically rerun this search and receive updated reports on a schedule"
-                            : "Unavailable for hand-picked document sets"}
-                        </div>
-                      </div>
-                    </div>
-                  </label>
+                <div className={styles.deliveryCardTitle}>
+                  {isSelectionSource ? "Export Report" : "Delivery Schedule"}
                 </div>
-                {!canSubscribe && (
-                  <div className={styles.deliveryConstraint}>
-                    Subscriptions require a search definition. This report was built from selected documents, so it can only be exported once.
+                <p className={styles.deliveryCardHint}>
+                  {isSelectionSource
+                    ? `Export your ${includedCases.length} selected document${includedCases.length !== 1 ? "s" : ""} as a one-time report.`
+                    : "Choose whether to receive this report once or on a recurring schedule."}
+                </p>
+                {canSubscribe ? (
+                  <div className={styles.deliveryOptions}>
+                    <label className={`${styles.deliveryOption} ${deliveryMode === "subscription" ? styles.deliveryOptionSelected : ""}`}>
+                      <input type="radio" name="deliveryMode" value="subscription" checked={deliveryMode === "subscription"} onChange={() => selectDeliveryMode("subscription")} className={styles.deliveryRadio} />
+                      <div className={styles.deliveryOptionContent}>
+                        <div className={styles.deliveryOptionIcon}>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div>
+                          <div className={styles.deliveryOptionLabel}>Subscription</div>
+                          <div className={styles.deliveryOptionDesc}>Automatically rerun this search and receive updated reports on a schedule</div>
+                        </div>
+                      </div>
+                    </label>
+                    <label className={`${styles.deliveryOption} ${deliveryMode === "one-off" ? styles.deliveryOptionSelected : ""}`}>
+                      <input type="radio" name="deliveryMode" value="one-off" checked={deliveryMode === "one-off"} onChange={() => selectDeliveryMode("one-off")} className={styles.deliveryRadio} />
+                      <div className={styles.deliveryOptionContent}>
+                        <div className={styles.deliveryOptionIcon}>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div>
+                          <div className={styles.deliveryOptionLabel}>One-off Snapshot</div>
+                          <div className={styles.deliveryOptionDesc}>Download a one-time snapshot with the current {includedCases.length} document{includedCases.length !== 1 ? "s" : ""}</div>
+                        </div>
+                      </div>
+                    </label>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Subscription: frequency */}

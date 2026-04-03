@@ -648,40 +648,14 @@ export default function ResultsPage() {
     continueReportFlow("selection", groups);
   }, [buildGroupsFromIds, collectionIds, continueReportFlow]);
 
-  const handleGenerateReport = useCallback(() => {
-    if (collectionIds.size > 0) {
-      launchSelectionReport();
-      return;
-    }
-
+  const handleSubscribeToSearch = useCallback(() => {
     launchSearchReport();
-  }, [collectionIds.size, launchSearchReport, launchSelectionReport]);
+  }, [launchSearchReport]);
 
-  const handleCollectionReport = useCallback(() => {
+  const handleExportSelected = useCallback(() => {
     if (collectionIds.size === 0) return;
     launchSelectionReport();
   }, [collectionIds.size, launchSelectionReport]);
-
-  const legacyCollectionReport = useCallback(() => {
-    if (collectionIds.size === 0) return;
-    const groups = {};
-    collectionIds.forEach((id) => {
-      const data = SAMPLE_CASES[id];
-      if (!data) return;
-      const docType = data.documentType || "case-law";
-      if (!groups[docType]) groups[docType] = [];
-      groups[docType].push({ id, label: data.parties || data.companyName || data.documentTitle });
-    });
-
-    const typeKeys = Object.keys(groups);
-    if (typeKeys.length === 1) {
-      // Single type — proceed directly
-      const chosenType = typeKeys[0];
-      startReportFlow("selection", chosenType, groups[chosenType].map((item) => item.id));
-    } else {
-      setMixedTypeChoice({ sourceType: "selection", groups });
-    }
-  }, [collectionIds, startReportFlow]);
 
   const handleGoToReports = useCallback(() => {
     navigate("/report");
@@ -717,18 +691,16 @@ export default function ResultsPage() {
           <div className={styles.resultCountRow}>
             <div className={styles.resultCount}>847 Results</div>
             <div className={styles.reportActionGroup}>
-              <button className={styles.generateReportBtn} onClick={handleGenerateReport}>
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Create Report
-                <span className={styles.reportBtnInfo}>
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  <span className={styles.reportBtnTooltip}>
-                    {collectionIds.size > 0
-                      ? `Uses your ${collectionIds.size} selected document${collectionIds.size !== 1 ? "s" : ""} for a one-off report. Clear the selection to create a subscription.`
-                      : "Uses the current search. Select individual documents only for one-time export."}
-                  </span>
-                </span>
+              <button className={styles.subscribeSearchBtn} onClick={handleSubscribeToSearch}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Subscribe to Search
               </button>
+              {collectionIds.size > 0 && (
+                <button className={styles.exportSelectedBtn} onClick={handleExportSelected}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Export {collectionIds.size} Selected
+                </button>
+              )}
             </div>
           </div>
 
@@ -779,8 +751,8 @@ export default function ResultsPage() {
             })}
           </div>
           <button className={styles.clearAllBtn} onClick={clearCollection}>Clear all</button>
-          <button className={styles.buildReportBtn} onClick={handleCollectionReport}>
-            Create One-Off Report &rarr;
+          <button className={styles.buildReportBtn} onClick={handleExportSelected}>
+            Export Selected &rarr;
           </button>
         </div>
       )}
