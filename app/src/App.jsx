@@ -6,7 +6,7 @@ import ReportPage from './pages/ReportPage';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/fuidani.com">
       <Routes>
         <Route path="/" element={<SearchPage />} />
         <Route path="/refine" element={<RefinePage />} />
