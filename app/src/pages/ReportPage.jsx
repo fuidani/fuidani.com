@@ -124,6 +124,8 @@ function DocumentPreview({
   onRemove,
   includeComparisonAppendix = false,
   docTypeLabel = "Documents",
+  reportInsights = [],
+  onRemoveInsight = null,
 }) {
   const today = new Date().toLocaleDateString("en-GB", {
     day: "numeric",
@@ -200,6 +202,41 @@ function DocumentPreview({
           sections={sections}
           docTypeLabel={docTypeLabel}
         />
+      )}
+
+      {reportInsights.length > 0 && (
+        <section className={styles.insightsAppendix}>
+          <div className={styles.insightsAppendixHeader}>
+            <div className={styles.compareAppendixEyebrow}>AI Analysis</div>
+            <div className={styles.compareAppendixTitle}>
+              <SparkleIcon /> Curated Insights
+            </div>
+          </div>
+          {reportInsights.map((insight) => (
+            <div key={insight.id} className={styles.insightBlock}>
+              <div className={styles.insightQuestion}>
+                <span className={styles.insightQuestionLabel}>Q:</span> {insight.question}
+              </div>
+              <div className={styles.insightAnswer}>
+                {insight.answer.split("\n").map((line, i) => (
+                  <p key={i} className={line.startsWith("**") ? styles.aiAnswerBold : ""}>
+                    {line.replace(/\*\*/g, "")}
+                  </p>
+                ))}
+              </div>
+              {onRemoveInsight && (
+                <button
+                  className={styles.insightRemoveBtn}
+                  onClick={() => onRemoveInsight(insight.id)}
+                  title="Remove from report"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
       )}
 
       <div className={styles.docFooter}>
@@ -424,6 +461,22 @@ function PencilIcon() {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function simulateAIAnswer(question, leftDoc, rightDoc, narrativeRows) {
   const leftLabel = getDocumentLabel(leftDoc);
   const rightLabel = getDocumentLabel(rightDoc);
@@ -496,12 +549,13 @@ function simulateAIAnswer(question, leftDoc, rightDoc, narrativeRows) {
     `.\n\nTo dive deeper, try asking about specific sections like "How do the appellant's arguments differ?" or "Summarize the tribunal findings."`;
 }
 
-function CompareAIAssistant({ leftDoc, rightDoc, narrativeRows }) {
+function CompareAIAssistant({ leftDoc, rightDoc, narrativeRows, onAddToReport }) {
   const [question, setQuestion] = useState("");
   const [conversations, setConversations] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editText, setEditText] = useState("");
+  const [addedToReport, setAddedToReport] = useState(new Set());
   const inputRef = useRef(null);
 
   const suggestedQuestions = [
@@ -617,13 +671,38 @@ function CompareAIAssistant({ leftDoc, rightDoc, narrativeRows }) {
                   </div>
                 </div>
               ) : (
-                <div className={styles.aiAnswerBody}>
-                  {(conv.editedAnswer || conv.answer).split("\n").map((line, i) => (
-                    <p key={i} className={line.startsWith("**") ? styles.aiAnswerBold : ""}>
-                      {line.replace(/\*\*/g, "")}
-                    </p>
-                  ))}
-                </div>
+                <>
+                  <div className={styles.aiAnswerBody}>
+                    {(conv.editedAnswer || conv.answer).split("\n").map((line, i) => (
+                      <p key={i} className={line.startsWith("**") ? styles.aiAnswerBold : ""}>
+                        {line.replace(/\*\*/g, "")}
+                      </p>
+                    ))}
+                  </div>
+                  {onAddToReport && (
+                    <div className={styles.aiAnswerFooter}>
+                      <button
+                        className={`${styles.aiAddToReportBtn} ${addedToReport.has(idx) ? styles.aiAddToReportBtnAdded : ""}`}
+                        onClick={() => {
+                          if (!addedToReport.has(idx)) {
+                            onAddToReport({
+                              question: conv.question,
+                              answer: conv.editedAnswer || conv.answer,
+                            });
+                            setAddedToReport((prev) => new Set(prev).add(idx));
+                          }
+                        }}
+                        disabled={addedToReport.has(idx)}
+                      >
+                        {addedToReport.has(idx) ? (
+                          <><CheckIcon /> Added to report</>
+                        ) : (
+                          <><PlusIcon /> Add to report</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -676,6 +755,7 @@ function PairwiseDetail({
   onChangeRight,
   onSwap,
   onBack,
+  onAddToReport = null,
 }) {
   const leftDoc = cases.find((c) => c.id === leftDocId) || cases[0];
   const rightDoc = cases.find((c) => c.id === rightDocId) || cases[1];
@@ -734,6 +814,7 @@ function PairwiseDetail({
           leftDoc={leftDoc}
           rightDoc={rightDoc}
           narrativeRows={narrativeRows}
+          onAddToReport={onAddToReport}
         />
       )}
 
@@ -832,6 +913,7 @@ function ComparisonMatrix({
   docTypeLabel,
   includeInExport = false,
   onToggleInclude = null,
+  onAddToReport = null,
 }) {
   const [compareView, setCompareView] = useState("pairwise"); // "overview" | "pairwise"
   const [leftDocId, setLeftDocId] = useState(cases[0]?.id || null);
@@ -889,6 +971,7 @@ function ComparisonMatrix({
         onChangeRight={setRightDocId}
         onSwap={handleSwap}
         onBack={() => setCompareView("overview")}
+        onAddToReport={onAddToReport}
       />
     );
   }
@@ -916,13 +999,11 @@ function ComparisonAppendix({ cases, metaFields, sections, docTypeLabel }) {
 
   const {
     metadataRows,
-    narrativeRows,
     differingMetadataCount,
     sharedMetadataCount,
-    differingNarrativeCount,
   } = getComparisonRows(cases, metaFields, sections);
 
-  if (metadataRows.length === 0 && narrativeRows.length === 0) return null;
+  if (metadataRows.length === 0) return null;
 
   return (
     <section className={styles.compareAppendix}>
@@ -942,10 +1023,6 @@ function ComparisonAppendix({ cases, metaFields, sections, docTypeLabel }) {
         <div className={styles.compareAppendixStat}>
           <span className={styles.compareAppendixStatValue}>{sharedMetadataCount}</span>
           <span className={styles.compareAppendixStatLabel}>metadata fields match</span>
-        </div>
-        <div className={styles.compareAppendixStat}>
-          <span className={styles.compareAppendixStatValue}>{differingNarrativeCount}</span>
-          <span className={styles.compareAppendixStatLabel}>narrative sections differ</span>
         </div>
       </div>
 
@@ -982,35 +1059,6 @@ function ComparisonAppendix({ cases, metaFields, sections, docTypeLabel }) {
         </div>
       )}
 
-      {narrativeRows.length > 0 && (
-        <div className={styles.compareAppendixBlock}>
-          <div className={styles.compareAppendixBlockTitle}>Narrative comparison</div>
-          <div className={styles.compareAppendixSections}>
-            {narrativeRows.map((row) => (
-              <section key={row.id} className={styles.compareAppendixSection}>
-                <div className={styles.compareAppendixSectionHeader}>
-                  <div className={styles.compareAppendixSectionTitle}>{row.label}</div>
-                  <span
-                    className={`${styles.compareAppendixBadge} ${
-                      row.isDifferent ? styles.compareAppendixBadgeDiff : styles.compareAppendixBadgeSame
-                    }`}
-                  >
-                    {row.isDifferent ? "Different" : "Same"}
-                  </span>
-                </div>
-                <div className={styles.compareAppendixSectionGrid}>
-                  {cases.map((doc, index) => (
-                    <div key={`${row.id}-${doc.id}`} className={styles.compareAppendixCard}>
-                      <div className={styles.compareAppendixCardTitle}>{getDocumentLabel(doc)}</div>
-                      <div className={styles.compareAppendixCardBody}>{row.values[index]}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 }
@@ -1072,6 +1120,13 @@ export default function ReportPage() {
   const [reportStep, setReportStep] = useState(1);
   const [viewTab, setViewTab] = useState(initialMode); // "report" | "compare"
   const [includeComparisonAppendix, setIncludeComparisonAppendix] = useState(initialMode === "compare");
+  const [reportInsights, setReportInsights] = useState([]);
+  const addInsightToReport = (insight) => {
+    setReportInsights((prev) => [...prev, { ...insight, id: Date.now() }]);
+  };
+  const removeInsightFromReport = (id) => {
+    setReportInsights((prev) => prev.filter((i) => i.id !== id));
+  };
   const [sections, setSections] = useState(() => typeSections.map((s) => ({ ...s })));
   const [selectedMetaFields, setSelectedMetaFields] = useState([...typeDefaultMetaFields]);
   const [reportTitle, setReportTitle] = useState(docType === "case-law" ? "TAT Summaries" : `${docTypeLabel} Report`);
@@ -1557,6 +1612,8 @@ export default function ReportPage() {
                     onRemove={isSelectionSource ? removeCase : null}
                     includeComparisonAppendix={shouldIncludeComparisonAppendix}
                     docTypeLabel={docTypeLabel}
+                    reportInsights={reportInsights}
+                    onRemoveInsight={removeInsightFromReport}
                   />
                 </div>
               ) : (
@@ -1568,6 +1625,7 @@ export default function ReportPage() {
                     docTypeLabel={docTypeLabel}
                     includeInExport={shouldIncludeComparisonAppendix}
                     onToggleInclude={() => setIncludeComparisonAppendix((prev) => !prev)}
+                    onAddToReport={addInsightToReport}
                   />
                 </div>
               )}
@@ -1772,6 +1830,7 @@ export default function ReportPage() {
                 cases={includedCases}
                 includeComparisonAppendix={shouldIncludeComparisonAppendix}
                 docTypeLabel={docTypeLabel}
+                reportInsights={reportInsights}
               />
             </div>
           </div>
