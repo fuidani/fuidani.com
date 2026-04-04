@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { SAMPLE_CASES } from "../data/sampleCases";
 import styles from "./ResultsPage.module.css";
@@ -453,14 +453,6 @@ function PreviewPanel({ data }) {
 
 /* ─── Toast ──────────────────────────────────────────────── */
 
-function Toast({ message, visible }) {
-  return (
-    <div className={`${styles.toast} ${visible ? styles.toastVisible : ""}`}>
-      {message}
-    </div>
-  );
-}
-
 /* ─── Mixed-Type Modal ──────────────────────────────────── */
 
 function MixedTypeModal({ typeGroups, onProceed, onCancel }) {
@@ -505,7 +497,7 @@ function MixedTypeModal({ typeGroups, onProceed, onCancel }) {
 export default function ResultsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchParams.get("q") || "");
 
   // Filter collapse state
   const [collapsedSections, setCollapsedSections] = useState(() => {
@@ -543,26 +535,8 @@ export default function ResultsPage() {
   // Mixed-type modal
   const [mixedTypeChoice, setMixedTypeChoice] = useState(null);
 
-  // Toast
-  const [toast, setToast] = useState({ message: "", visible: false });
-  const toastTimer = useRef(null);
-
   const casesArray = useMemo(() => Object.entries(SAMPLE_CASES), []);
   const firstCase = casesArray.length > 0 ? casesArray[0][1] : null;
-
-  // Read q from URL
-  useEffect(() => {
-    const q = searchParams.get("q");
-    if (q) setQuery(q);
-  }, [searchParams]);
-
-  const showToast = useCallback((msg) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ message: msg, visible: true });
-    toastTimer.current = setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 3000);
-  }, []);
 
   const toggleCollapse = useCallback((key) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -652,7 +626,7 @@ export default function ResultsPage() {
     launchSearchReport();
   }, [launchSearchReport]);
 
-  const handleExportSelected = useCallback(() => {
+  const handleBuildSelectedReport = useCallback(() => {
     if (collectionIds.size === 0) return;
     launchSelectionReport();
   }, [collectionIds.size, launchSelectionReport]);
@@ -696,9 +670,9 @@ export default function ResultsPage() {
                 Subscribe to Search
               </button>
               {collectionIds.size > 0 && (
-                <button className={styles.exportSelectedBtn} onClick={handleExportSelected}>
+                <button className={styles.exportSelectedBtn} onClick={handleBuildSelectedReport}>
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Export {collectionIds.size} Selected
+                  Build Report
                 </button>
               )}
             </div>
@@ -736,7 +710,11 @@ export default function ResultsPage() {
           </div>
           <div className={styles.collectorInfo}>
             <span className={styles.collectorCount}>{collectionIds.size}/{MAX_COLLECTION} selected</span>
-            <span className={styles.collectorHint}>Hand-picked documents for a one-time export</span>
+            <span className={styles.collectorHint}>
+              {collectionIds.size >= 2
+                ? "Build the report first, then use the Compare tab before export."
+                : "Hand-picked document ready for a one-time report."}
+            </span>
           </div>
           <div className={styles.collectorPills}>
             {[...collectionIds].map((id) => {
@@ -751,13 +729,11 @@ export default function ResultsPage() {
             })}
           </div>
           <button className={styles.clearAllBtn} onClick={clearCollection}>Clear all</button>
-          <button className={styles.buildReportBtn} onClick={handleExportSelected}>
-            Export Selected &rarr;
+          <button className={styles.buildReportBtn} onClick={handleBuildSelectedReport}>
+            Build Report &rarr;
           </button>
         </div>
       )}
-
-      <Toast message={toast.message} visible={toast.visible} />
     </div>
   );
 }
