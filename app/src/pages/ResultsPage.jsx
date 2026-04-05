@@ -1,495 +1,59 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { SAMPLE_CASES } from "../data/sampleCases";
 import styles from "./ResultsPage.module.css";
 import TopBar from "../components/TopBar";
+import {
+  FILTER_SECTIONS,
+  buildFilterSections,
+  matchesSelectedFilters,
+  CARD_FIELDS,
+  CARD_FIELDS_FINANCIAL,
+  CARD_FIELDS_CONTRACT,
+  ALL_FIELDS,
+  ALL_FIELDS_FINANCIAL,
+  ALL_FIELDS_CONTRACT,
+  LIST_FIELDS,
+  LIST_FIELDS_FINANCIAL,
+  LIST_FIELDS_CONTRACT,
+  ALL_LIST_FIELDS,
+  ALL_LIST_FIELDS_FINANCIAL,
+  ALL_LIST_FIELDS_CONTRACT,
+} from "./results/constants";
+import SearchRow from "./results/SearchRow";
+import FilterSidebar from "./results/FilterSidebar";
+import ResultCard from "./results/ResultCard";
+import ResultListRow from "./results/ResultListRow";
+import PreviewPanel from "./results/PreviewPanel";
+import MixedTypeModal from "./results/MixedTypeModal";
+import EditCardModal from "./results/EditCardModal";
 
 /* ─── Constants ──────────────────────────────────────────── */
 
-const FILTER_SECTIONS = [
-  {
-    key: "taxType",
-    label: "Tax Type",
-    options: [
-      { label: "Income Tax", count: 214 },
-      { label: "VAT", count: 187 },
-      { label: "Customs Duty", count: 132 },
-      { label: "Excise Duty", count: 98 },
-      { label: "Transfer Pricing", count: 76 },
-      { label: "Corporation Tax", count: 64 },
-      { label: "Withholding Tax", count: 42 },
-      { label: "Capital Gains", count: 34 },
-    ],
-    defaultOpen: true,
-  },
-  {
-    key: "disposition",
-    label: "Disposition",
-    options: [
-      { label: "Dismissed", count: 312 },
-      { label: "Allowed", count: 289 },
-      { label: "Partially Allowed", count: 146 },
-      { label: "Struck Out", count: 58 },
-      { label: "Withdrawn", count: 42 },
-    ],
-    defaultOpen: true,
-  },
-  {
-    key: "prevailingParty",
-    label: "Prevailing Party",
-    options: [
-      { label: "Respondent (KRA)", count: 423 },
-      { label: "Appellant (Taxpayer)", count: 312 },
-      { label: "Split Decision", count: 112 },
-    ],
-    defaultOpen: true,
-  },
-  {
-    key: "taxIssueCategory",
-    label: "Tax Issue Category",
-    options: [
-      { label: "Assessment Dispute", count: 198 },
-      { label: "Classification Dispute", count: 156 },
-      { label: "Transfer Pricing", count: 76 },
-      { label: "Exemption Claim", count: 112 },
-      { label: "Penalty Challenge", count: 94 },
-      { label: "Refund Claim", count: 67 },
-    ],
-    defaultOpen: false,
-  },
-  {
-    key: "taxpayerClassification",
-    label: "Taxpayer Classification",
-    options: [
-      { label: "Large Taxpayer", count: 312 },
-      { label: "Medium Taxpayer", count: 287 },
-      { label: "Small Taxpayer", count: 156 },
-      { label: "Individual", count: 92 },
-    ],
-    defaultOpen: false,
-  },
-  {
-    key: "decisionYear",
-    label: "Decision Year",
-    options: [
-      { label: "2025", count: 187 },
-      { label: "2024", count: 234 },
-      { label: "2023", count: 198 },
-      { label: "2022", count: 156 },
-      { label: "2021", count: 72 },
-    ],
-    defaultOpen: false,
-  },
-  {
-    key: "disputedAmount",
-    label: "Disputed Amount",
-    options: [
-      { label: "Over KES 1B", count: 23 },
-      { label: "KES 100M – 1B", count: 87 },
-      { label: "KES 10M – 100M", count: 234 },
-      { label: "KES 1M – 10M", count: 312 },
-      { label: "Under KES 1M", count: 191 },
-    ],
-    defaultOpen: false,
-  },
-];
+const MAX_COLLECTION = 10;
+const SIDEBAR_WIDTH = 240;
+const RESULTS_MIN_WIDTH = 560;
+const PREVIEW_MIN_WIDTH = 320;
+const PREVIEW_DEFAULT_WIDTH = 360;
+const PREVIEW_MAX_WIDTH = 760;
+const PREVIEW_RESIZER_WIDTH = 12;
+const PREVIEW_WIDTH_STORAGE_KEY = "jibudocs-results-preview-width";
 
-const SUGGESTED_CHIPS = [
-  "Customs Duty",
-  "Transfer Pricing",
-  "Large Taxpayer",
-  "Dismissed",
-  "2025 Decisions",
-];
+function getInitialPreviewWidth() {
+  if (typeof window === "undefined") return PREVIEW_DEFAULT_WIDTH;
 
-const CARD_FIELDS = [
-  "Court",
-  "Tax Type",
-  "Decision Date",
-  "Disposition",
-  "Disputed Tax Amount",
-  "Prevailing Party",
-  "Tax Issue Category",
-];
-
-const CARD_FIELDS_FINANCIAL = [
-  "Statement Type",
-  "Reporting Period End Date",
-  "Industry",
-  "Country Or Region",
-  "Revenue",
-  "Profit Or Loss",
-  "Auditor Opinion",
-  "Is Signed",
-];
-
-const CARD_FIELDS_CONTRACT = [
-  "Contract Name",
-  "Contract Type",
-  "Legal Area",
-  "Contract Date",
-  "Signing Date",
-  "Expiration Date",
-  "Parties",
-  "Governing Law",
-  "Contract Value",
-  "Currency",
-];
-
-/* ─── SVG Icons (inline) ─────────────────────────────────── */
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
+  const storedValue = Number(window.localStorage.getItem(PREVIEW_WIDTH_STORAGE_KEY));
+  return Number.isFinite(storedValue) ? storedValue : PREVIEW_DEFAULT_WIDTH;
 }
 
-function ChevronIcon({ open }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
-
-/* ─── Subcomponents ──────────────────────────────────────── */
-
-function SearchRow({ query, onQueryChange, onSearch }) {
-  return (
-    <div className={styles.searchRow}>
-      <div className={styles.searchInputWrap}>
-        <span className={styles.searchInputIcon}><SearchIcon /></span>
-        <input
-          className={styles.searchInput}
-          type="text"
-          placeholder="Search cases..."
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSearch()}
-        />
-      </div>
-      <button className={styles.searchBtn} onClick={onSearch}>Search</button>
-      <div className={styles.actionIcons}>
-        <button className={styles.iconBtn} title="Save search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        </button>
-        <button className={styles.iconBtn} title="Export">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
-        <button className={styles.iconBtn} title="Grid view">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FilterSidebar({ collapsedSections, toggleCollapse }) {
-  return (
-    <aside className={styles.sidebar}>
-      <div className={styles.sidebarHeader}>
-        <h3 className={styles.sidebarTitle}>Filters</h3>
-      </div>
-      <div className={styles.filterList}>
-        {FILTER_SECTIONS.map((sec) => {
-          const open = !collapsedSections[sec.key];
-          return (
-            <div key={sec.key} className={styles.filterSection}>
-              <button className={styles.filterHeader} onClick={() => toggleCollapse(sec.key)}>
-                <span>{sec.label}</span>
-                <ChevronIcon open={open} />
-              </button>
-              {open && (
-                <div className={styles.filterBody}>
-                  {sec.options.map((opt) => (
-                    <label key={opt.label} className={styles.filterOption}>
-                      <input type="checkbox" className={styles.filterCb} />
-                      <span className={styles.filterLabel}>{opt.label}</span>
-                      <span className={styles.filterCount}>{opt.count}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className={styles.filterActions}>
-        <button className={styles.applyBtn}>Apply Filters</button>
-        <button className={styles.resetBtn}>Reset</button>
-      </div>
-    </aside>
-  );
-}
-
-const FOOTER_SECTIONS_BY_TYPE = {
-  "financial-statement": [
-    { key: "companyIdentifiers", label: "Company Identifiers" },
-    { key: "reportingStandards", label: "Reporting Standards" },
-    { key: "consolidationLevel", label: "Consolidation Level" },
-    { key: "presentationCurrency", label: "Presentation Currency" },
-    { key: "units", label: "Units" },
-    { key: "roundingPolicy", label: "Rounding Policy" },
-  ],
-  contract: [
-    { key: "effectiveDate", label: "Effective Date" },
-    { key: "jurisdiction", label: "Jurisdiction" },
-    { key: "paymentTerms", label: "Payment Terms" },
-    { key: "term", label: "Term" },
-    { key: "scopeOfWork", label: "Scope of Work" },
-    { key: "background", label: "Background" },
-    { key: "fees", label: "Fees" },
-  ],
-};
-
-function ResultCard({ id, data, expandedFooter, onToggleFooter, onAddToReport, addedToReport, collectionFull }) {
-  const docType = data.documentType; // "financial-statement", "contract", or undefined (case law)
-  const isCase = !docType;
-  const FOOTER_SECTIONS_CASE = ["background", "issues", "findings", "decision"];
-  const footerSections = isCase ? null : FOOTER_SECTIONS_BY_TYPE[docType];
-
-  const fields = docType === "financial-statement"
-    ? CARD_FIELDS_FINANCIAL
-    : docType === "contract"
-      ? CARD_FIELDS_CONTRACT
-      : CARD_FIELDS;
-
-  const titleText = isCase
-    ? `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`
-    : data.documentTitle;
-  const showSubtitle = !isCase;
-  const useWideGrid = !isCase;
-
-  return (
-    <div className={`${styles.resultCard} ${addedToReport ? styles.resultCardSelected : ""}`}>
-      {/* Header: title + action buttons on the right */}
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderLeft}>
-          <h4 className={styles.cardTitle}>{titleText}</h4>
-          {showSubtitle && (
-            <span className={styles.cardSubtitle}>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#ca8a04" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              JibuDocs File Manager
-            </span>
-          )}
-        </div>
-        <div className={styles.cardHeaderActions}>
-          <button
-            className={`${styles.cardAddBtn} ${addedToReport ? styles.cardAddBtnActive : ""}`}
-            onClick={() => onAddToReport(id)}
-            disabled={!addedToReport && collectionFull}
-            title={addedToReport ? "Remove from one-time export" : "Select for one-time export"}
-          >
-            {addedToReport ? (
-              <>
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Selected
-              </>
-            ) : (
-              <>
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Select for Export
-              </>
-            )}
-          </button>
-          <button className={styles.cardOpenBtn}>
-            Open
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Fields grid */}
-      <div className={useWideGrid ? styles.cardFieldsWide : styles.cardFields}>
-        {fields.map((f) => {
-          const val = data[f] || "—";
-          const isDisposition = f === "Disposition";
-          const isProfitLoss = f === "Profit Or Loss";
-          const color = isDisposition
-            ? val === "Dismissed" ? "#b91c1c" : val === "Allowed" ? "#047857" : undefined
-            : isProfitLoss && val !== "—"
-              ? parseFloat(val.replace(/,/g, "")) >= 0 ? "#047857" : "#b91c1c"
-              : undefined;
-          return (
-            <div key={f} className={styles.cardField}>
-              <span className={styles.fieldKey}>{f}</span>
-              <span className={styles.fieldVal} style={color ? { color, fontWeight: 600 } : undefined}>{val}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Key Issue full-width row (case law only) */}
-      {isCase && (
-        <div className={styles.cardKeyIssue}>
-          <span className={styles.fieldKey}>Key Issue</span>
-          <span className={`${styles.fieldVal} ${styles.truncateVal}`}>{data.issues || "—"}</span>
-        </div>
-      )}
-
-      {/* Footer with expandable section buttons + Edit Card */}
-      <div className={styles.cardFooter}>
-        <div className={styles.footerFields}>
-          {footerSections
-            ? footerSections.map((sec) => (
-                <button
-                  key={sec.key}
-                  className={styles.footerFieldBtn}
-                  onClick={() => onToggleFooter(id, sec.key)}
-                >
-                  {sec.label} {expandedFooter?.[sec.key] ? "−" : "+"}
-                </button>
-              ))
-            : <>
-                {FOOTER_SECTIONS_CASE.map((sec) => (
-                  <button
-                    key={sec}
-                    className={styles.footerFieldBtn}
-                    onClick={() => onToggleFooter(id, sec)}
-                  >
-                    {sec.charAt(0).toUpperCase() + sec.slice(1)} {expandedFooter?.[sec] ? "−" : "+"}
-                  </button>
-                ))}
-                <button className={styles.footerFieldBtn} onClick={() => onToggleFooter(id, "statute")}>
-                  Cited Statute +
-                </button>
-              </>
-          }
-        </div>
-        <button className={styles.editCardBtn}>
-          Edit Card
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
-      </div>
-
-      {/* Expanded content below footer */}
-      {footerSections
-        ? footerSections.map((sec) =>
-            expandedFooter?.[sec.key] && data[sec.key] ? (
-              <div key={sec.key} className={styles.expandedSection}>
-                <h5 className={styles.expandedTitle}>{sec.label}</h5>
-                <p className={styles.expandedText}>{data[sec.key]}</p>
-              </div>
-            ) : null
-          )
-        : <>
-            {FOOTER_SECTIONS_CASE.map((sec) =>
-              expandedFooter?.[sec] && data[sec] ? (
-                <div key={sec} className={styles.expandedSection}>
-                  <h5 className={styles.expandedTitle}>{sec.charAt(0).toUpperCase() + sec.slice(1)}</h5>
-                  <p className={styles.expandedText}>{data[sec]}</p>
-                </div>
-              ) : null
-            )}
-            {expandedFooter?.statute && data["Cited Statute"] && (
-              <div className={styles.expandedSection}>
-                <h5 className={styles.expandedTitle}>Cited Statute</h5>
-                <p className={styles.expandedText}>{data["Cited Statute"]}</p>
-              </div>
-            )}
-          </>
-      }
-    </div>
-  );
-}
-
-function PreviewPanel({ data }) {
-  if (!data) return null;
-  const docType = data.documentType;
-  const title = docType ? (data.companyName || data.documentTitle) : data.parties;
-  const sections = docType === "financial-statement"
-    ? [
-        { key: "documentTitle", label: "Document Title" },
-        { key: "Statement Type", label: "Statement Type" },
-        { key: "Reporting Period End Date", label: "Reporting Period" },
-        { key: "Revenue", label: "Revenue" },
-        { key: "Profit Or Loss", label: "Profit Or Loss" },
-        { key: "Auditor Opinion", label: "Auditor Opinion" },
-      ]
-    : docType === "contract"
-      ? [
-          { key: "Contract Name", label: "Contract Name" },
-          { key: "Contract Type", label: "Contract Type" },
-          { key: "Legal Area", label: "Legal Area" },
-          { key: "Parties", label: "Parties" },
-          { key: "Contract Value", label: "Contract Value" },
-          { key: "Governing Law", label: "Governing Law" },
-        ]
-      : [
-          { key: "background", label: "Background" },
-          { key: "issues", label: "Issues" },
-          { key: "findings", label: "Findings" },
-          { key: "decision", label: "Decision" },
-        ];
-  return (
-    <aside className={styles.previewPanel}>
-      <h3 className={styles.previewTitle}>{title}</h3>
-      {sections.map((sec) =>
-        data[sec.key] ? (
-          <div key={sec.key} className={styles.previewSection}>
-            <h4 className={styles.previewSectionTitle}>{sec.label}</h4>
-            <p className={styles.previewText}>{data[sec.key]}</p>
-          </div>
-        ) : null
-      )}
-    </aside>
-  );
-}
-
-
-/* ─── Toast ──────────────────────────────────────────────── */
-
-/* ─── Mixed-Type Modal ──────────────────────────────────── */
-
-function MixedTypeModal({ typeGroups, onProceed, onCancel }) {
-  if (!typeGroups) return null;
-
-  const typeKeys = Object.keys(typeGroups);
-  const typeLabel = (t) =>
-    t === "case-law" ? "Case Law" : t === "financial-statement" ? "Financial Statements" : "Contracts";
-
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalBox}>
-        <div className={styles.modalHeader}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ca8a04" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <h3 className={styles.modalTitle}>Multiple document types selected</h3>
-        </div>
-        <p className={styles.modalDesc}>
-          Reports can only contain one document type. Choose which type to include:
-        </p>
-        <div className={styles.modalOptions}>
-          {typeKeys.map((t) => (
-            <button key={t} className={styles.modalOptionBtn} onClick={() => onProceed(t)}>
-              <span className={styles.modalOptionLabel}>{typeLabel(t)}</span>
-              <span className={styles.modalOptionCount}>
-                {typeGroups[t].length} document{typeGroups[t].length !== 1 ? "s" : ""}
-              </span>
-            </button>
-          ))}
-        </div>
-        <button className={styles.modalCancelBtn} onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  );
+function normalizeFilterState(filters) {
+  return Object.keys(filters)
+    .sort()
+    .reduce((acc, key) => {
+      const values = [...(filters[key] || [])].sort();
+      if (values.length > 0) acc[key] = values;
+      return acc;
+    }, {});
 }
 
 /* ─── Main Page Component ────────────────────────────────── */
@@ -498,6 +62,8 @@ export default function ResultsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  const mainLayoutRef = useRef(null);
+  const resizeStateRef = useRef({ active: false, containerRight: 0 });
 
   // Filter collapse state
   const [collapsedSections, setCollapsedSections] = useState(() => {
@@ -507,9 +73,10 @@ export default function ResultsPage() {
     });
     return init;
   });
+  const [draftFilters, setDraftFilters] = useState({});
+  const [appliedFilters, setAppliedFilters] = useState({});
 
   // Manual report collection
-  const MAX_COLLECTION = 10;
   const [collectionIds, setCollectionIds] = useState(new Set());
 
   const toggleCollectionItem = useCallback((id) => {
@@ -535,11 +102,65 @@ export default function ResultsPage() {
   // Mixed-type modal
   const [mixedTypeChoice, setMixedTypeChoice] = useState(null);
 
+  // Edit card modal
+  const [editCardId, setEditCardId] = useState(null);
+  const [editMode, setEditMode] = useState("cards");
+  const [customFieldsMap, setCustomFieldsMap] = useState({});
+  const [listFieldsMap, setListFieldsMap] = useState({});
+  const [viewMode, setViewMode] = useState("list");
+  const [previewWidth, setPreviewWidth] = useState(getInitialPreviewWidth);
+  const [isPreviewResizing, setIsPreviewResizing] = useState(false);
+
   const casesArray = useMemo(() => Object.entries(SAMPLE_CASES), []);
-  const firstCase = casesArray.length > 0 ? casesArray[0][1] : null;
+  const filterSections = useMemo(() => buildFilterSections(SAMPLE_CASES), []);
+  const [selectedPreviewId, setSelectedPreviewId] = useState(null);
+  const filteredCasesArray = useMemo(
+    () => casesArray.filter(([, data]) => matchesSelectedFilters(data, appliedFilters)),
+    [appliedFilters, casesArray]
+  );
+  const draftFiltersSignature = useMemo(
+    () => JSON.stringify(normalizeFilterState(draftFilters)),
+    [draftFilters]
+  );
+  const appliedFiltersSignature = useMemo(
+    () => JSON.stringify(normalizeFilterState(appliedFilters)),
+    [appliedFilters]
+  );
+  const hasPendingFilterChanges = draftFiltersSignature !== appliedFiltersSignature;
+  const hasAnySelectedFilters = draftFiltersSignature !== "{}" || appliedFiltersSignature !== "{}";
+  const resultCount = filteredCasesArray.length;
+  const previewData = useMemo(
+    () => filteredCasesArray.find(([id]) => id === selectedPreviewId)?.[1] ?? null,
+    [filteredCasesArray, selectedPreviewId]
+  );
 
   const toggleCollapse = useCallback((key) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const toggleDraftFilter = useCallback((sectionKey, optionLabel) => {
+    setDraftFilters((prev) => {
+      const currentValues = prev[sectionKey] || [];
+      const nextValues = currentValues.includes(optionLabel)
+        ? currentValues.filter((value) => value !== optionLabel)
+        : [...currentValues, optionLabel];
+
+      if (nextValues.length === 0) {
+        const { [sectionKey]: _removed, ...rest } = prev;
+        return rest;
+      }
+
+      return { ...prev, [sectionKey]: nextValues };
+    });
+  }, []);
+
+  const applyFilters = useCallback(() => {
+    setAppliedFilters(normalizeFilterState(draftFilters));
+  }, [draftFilters]);
+
+  const resetFilters = useCallback(() => {
+    setDraftFilters({});
+    setAppliedFilters({});
   }, []);
 
   const toggleFooter = useCallback((cardId, section) => {
@@ -611,9 +232,10 @@ export default function ResultsPage() {
   }, [startReportFlow]);
 
   const launchSearchReport = useCallback(() => {
-    const groups = buildGroupsFromIds(casesArray.map(([id]) => id));
+    if (filteredCasesArray.length === 0) return;
+    const groups = buildGroupsFromIds(filteredCasesArray.map(([id]) => id));
     continueReportFlow("search", groups);
-  }, [buildGroupsFromIds, casesArray, continueReportFlow]);
+  }, [buildGroupsFromIds, continueReportFlow, filteredCasesArray]);
 
   const launchSelectionReport = useCallback(() => {
     if (collectionIds.size === 0) return;
@@ -635,64 +257,277 @@ export default function ResultsPage() {
     navigate("/report");
   }, [navigate]);
 
+  const handleEditCard = useCallback((id, mode) => {
+    setEditCardId(id);
+    setEditMode(mode);
+  }, []);
+
+  const handleApplyCustomFields = useCallback((newFields) => {
+    if (editMode === "list") {
+      setListFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
+    } else {
+      setCustomFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
+    }
+    setEditCardId(null);
+  }, [editCardId, editMode]);
+
+  const getFieldsForDocType = useCallback((docType, mode = "cards") => {
+    if (mode === "list") {
+      if (docType === "financial-statement") return { defaults: LIST_FIELDS_FINANCIAL, all: ALL_LIST_FIELDS_FINANCIAL };
+      if (docType === "contract") return { defaults: LIST_FIELDS_CONTRACT, all: ALL_LIST_FIELDS_CONTRACT };
+      return { defaults: LIST_FIELDS, all: ALL_LIST_FIELDS };
+    }
+
+    if (docType === "financial-statement") return { defaults: CARD_FIELDS_FINANCIAL, all: ALL_FIELDS_FINANCIAL };
+    if (docType === "contract") return { defaults: CARD_FIELDS_CONTRACT, all: ALL_FIELDS_CONTRACT };
+    return { defaults: CARD_FIELDS, all: ALL_FIELDS };
+  }, []);
+
   const handleSearch = useCallback(() => {
     // placeholder
   }, []);
 
+  useEffect(() => {
+    if (selectedPreviewId === null) return;
+    if (filteredCasesArray.some(([id]) => id === selectedPreviewId)) return;
+    setSelectedPreviewId(null);
+  }, [filteredCasesArray, selectedPreviewId]);
+
+  const getPreviewMaxWidth = useCallback(() => {
+    const containerWidth = mainLayoutRef.current?.clientWidth
+      ?? (typeof window !== "undefined" ? window.innerWidth : PREVIEW_DEFAULT_WIDTH + PREVIEW_MIN_WIDTH);
+    const availableWidth = containerWidth - SIDEBAR_WIDTH - RESULTS_MIN_WIDTH - PREVIEW_RESIZER_WIDTH;
+
+    return Math.max(
+      PREVIEW_MIN_WIDTH,
+      Math.min(PREVIEW_MAX_WIDTH, availableWidth)
+    );
+  }, []);
+
+  const clampPreviewWidth = useCallback((nextWidth) => {
+    const maxWidth = getPreviewMaxWidth();
+    return Math.min(Math.max(nextWidth, PREVIEW_MIN_WIDTH), maxWidth);
+  }, [getPreviewMaxWidth]);
+
+  const handlePreviewResizeStart = useCallback((event) => {
+    if (typeof window !== "undefined" && window.innerWidth <= 1100) return;
+
+    const rect = mainLayoutRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    event.preventDefault();
+    resizeStateRef.current = {
+      active: true,
+      containerRight: rect.right,
+    };
+    setIsPreviewResizing(true);
+  }, []);
+
+  const handlePreviewResizeKeyDown = useCallback((event) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      setPreviewWidth((current) => clampPreviewWidth(current + 24));
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      setPreviewWidth((current) => clampPreviewWidth(current - 24));
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setPreviewWidth(PREVIEW_MIN_WIDTH);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setPreviewWidth(getPreviewMaxWidth());
+    }
+  }, [clampPreviewWidth, getPreviewMaxWidth]);
+
+  const handlePreviewResizeReset = useCallback(() => {
+    setPreviewWidth(clampPreviewWidth(PREVIEW_DEFAULT_WIDTH));
+  }, [clampPreviewWidth]);
+
+  useEffect(() => {
+    const handlePointerMove = (event) => {
+      if (!resizeStateRef.current.active) return;
+
+      const nextWidth = resizeStateRef.current.containerRight - event.clientX;
+      setPreviewWidth(clampPreviewWidth(nextWidth));
+    };
+
+    const stopResizing = () => {
+      if (!resizeStateRef.current.active) return;
+
+      resizeStateRef.current.active = false;
+      setIsPreviewResizing(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResizing);
+    window.addEventListener("pointercancel", stopResizing);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResizing);
+      window.removeEventListener("pointercancel", stopResizing);
+    };
+  }, [clampPreviewWidth]);
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      setPreviewWidth((current) => clampPreviewWidth(current));
+    };
+
+    handleWindowResize();
+    window.addEventListener("resize", handleWindowResize);
+
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
+    };
+  }, [clampPreviewWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PREVIEW_WIDTH_STORAGE_KEY, String(Math.round(previewWidth)));
+  }, [previewWidth]);
+
+  useEffect(() => {
+    if (!isPreviewResizing) return undefined;
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [isPreviewResizing]);
+
   return (
     <div className={styles.page}>
       <TopBar activeTab="search" onReportsClick={handleGoToReports} />
-      <SearchRow
-        query={query}
-        onQueryChange={setQuery}
-        onSearch={handleSearch}
-      />
-
-      <div className={styles.mainLayout}>
+      <div
+        ref={mainLayoutRef}
+        className={`${styles.mainLayout} ${isPreviewResizing ? styles.mainLayoutResizing : ""}`}
+        style={{ "--preview-width": `${previewWidth}px` }}
+      >
         <FilterSidebar
+          filterSections={filterSections}
           collapsedSections={collapsedSections}
           toggleCollapse={toggleCollapse}
+          selectedFilters={draftFilters}
+          onToggleOption={toggleDraftFilter}
+          onApplyFilters={applyFilters}
+          onResetFilters={resetFilters}
+          hasPendingChanges={hasPendingFilterChanges}
+          hasAnySelectedFilters={hasAnySelectedFilters}
         />
 
         <main className={styles.resultsArea} style={collectionIds.size > 0 ? { paddingBottom: 70 } : undefined}>
-          {/* Suggested chips */}
-          <div className={styles.chipRow}>
-            {SUGGESTED_CHIPS.map((c) => (
-              <button key={c} className={styles.chip}>{c}</button>
-            ))}
-          </div>
+          <SearchRow
+            query={query}
+            onQueryChange={setQuery}
+            onSearch={handleSearch}
+          />
 
           <div className={styles.resultCountRow}>
-            <div className={styles.resultCount}>847 Results</div>
-            <div className={styles.reportActionGroup}>
-              <button className={styles.subscribeSearchBtn} onClick={handleSubscribeToSearch}>
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Subscribe to Search
-              </button>
-              {collectionIds.size > 0 && (
-                <button className={styles.exportSelectedBtn} onClick={handleBuildSelectedReport}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Build Report
+            <div className={styles.resultCount}>
+              {resultCount} Result{resultCount === 1 ? "" : "s"}
+            </div>
+            <div className={styles.resultUtilityGroup}>
+              <div className={styles.viewToggle}>
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.viewToggleBtnActive : ""}`}
+                  onClick={() => setViewMode("list")}
+                >
+                  List
                 </button>
-              )}
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${viewMode === "cards" ? styles.viewToggleBtnActive : ""}`}
+                  onClick={() => setViewMode("cards")}
+                >
+                  Cards
+                </button>
+              </div>
+              <div className={styles.reportActionGroup}>
+                <button className={styles.subscribeSearchBtn} onClick={handleSubscribeToSearch} disabled={resultCount === 0}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Subscribe to Search
+                </button>
+                {collectionIds.size > 0 && (
+                  <button className={styles.exportSelectedBtn} onClick={handleBuildSelectedReport}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Build Report
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {casesArray.map(([id, data]) => (
-            <ResultCard
-              key={id}
-              id={id}
-              data={data}
-              expandedFooter={expandedFooters[id]}
-              onToggleFooter={toggleFooter}
-              onAddToReport={toggleCollectionItem}
-              addedToReport={collectionIds.has(id)}
-              collectionFull={collectionIds.size >= MAX_COLLECTION}
-            />
-          ))}
+          <div className={viewMode === "list" ? styles.resultList : styles.resultCardStack}>
+            {filteredCasesArray.length === 0 ? (
+              <div className={styles.emptyResults}>No results match the selected filters.</div>
+            ) : (
+              filteredCasesArray.map(([id, data]) =>
+                viewMode === "list" ? (
+                  <ResultListRow
+                    key={id}
+                    id={id}
+                    data={data}
+                    isPreviewActive={selectedPreviewId === id}
+                    onPreviewSelect={setSelectedPreviewId}
+                    onAddToReport={toggleCollectionItem}
+                    addedToReport={collectionIds.has(id)}
+                    collectionFull={collectionIds.size >= MAX_COLLECTION}
+                    customFields={listFieldsMap[id]}
+                    onEditCard={(targetId) => handleEditCard(targetId, "list")}
+                  />
+                ) : (
+                  <ResultCard
+                    key={id}
+                    id={id}
+                    data={data}
+                    isPreviewActive={selectedPreviewId === id}
+                    onPreviewSelect={setSelectedPreviewId}
+                    expandedFooter={expandedFooters[id]}
+                    onToggleFooter={toggleFooter}
+                    onAddToReport={toggleCollectionItem}
+                    addedToReport={collectionIds.has(id)}
+                    collectionFull={collectionIds.size >= MAX_COLLECTION}
+                    customFields={customFieldsMap[id]}
+                    onEditCard={(targetId) => handleEditCard(targetId, "cards")}
+                  />
+                )
+              )
+            )}
+          </div>
         </main>
 
-        <PreviewPanel data={firstCase} />
+        <div
+          className={`${styles.previewResizer} ${isPreviewResizing ? styles.previewResizerActive : ""}`}
+          role="separator"
+          aria-label="Resize preview panel"
+          aria-orientation="vertical"
+          aria-valuemin={PREVIEW_MIN_WIDTH}
+          aria-valuemax={getPreviewMaxWidth()}
+          aria-valuenow={Math.round(previewWidth)}
+          aria-valuetext={`${Math.round(previewWidth)} pixels`}
+          tabIndex={0}
+          title="Drag to resize preview panel"
+          onPointerDown={handlePreviewResizeStart}
+          onKeyDown={handlePreviewResizeKeyDown}
+          onDoubleClick={handlePreviewResizeReset}
+        />
+        <PreviewPanel data={previewData} />
       </div>
 
       {mixedTypeChoice && (
@@ -702,6 +537,20 @@ export default function ResultsPage() {
           onCancel={() => setMixedTypeChoice(null)}
         />
       )}
+
+      {editCardId && (() => {
+        const docType = SAMPLE_CASES[editCardId]?.documentType || "case-law";
+        const { defaults, all } = getFieldsForDocType(docType, editMode);
+        return (
+          <EditCardModal
+            fields={(editMode === "list" ? listFieldsMap[editCardId] : customFieldsMap[editCardId]) || defaults}
+            defaultFields={defaults}
+            allFields={all}
+            onApply={handleApplyCustomFields}
+            onClose={() => setEditCardId(null)}
+          />
+        );
+      })()}
 
       {collectionIds.size > 0 && (
         <div className={styles.collectorBar}>

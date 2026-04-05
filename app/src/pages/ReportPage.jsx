@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   SAMPLE_CASES,
@@ -11,1168 +11,30 @@ import {
 } from "../data/sampleCases";
 import darkLogo from "../assets/Dark_Logo_JibuDocs_Icon.png";
 import styles from "./ReportPage.module.css";
+import ToggleSwitch from "../components/ToggleSwitch";
+import DocumentPreview from "./report/DocumentPreview";
+import ComparisonMatrix from "./report/ComparisonMatrix";
 
 const DEFAULT_META_FIELDS = DEFAULT_META_FIELDS_BY_TYPE['case-law'];
 
-/* ─── Icons ─────────────────────────────────────────────── */
+const hasRenderableMetaField = (doc, field) =>
+  Object.prototype.hasOwnProperty.call(doc, field) && doc[field] !== undefined;
 
-function GripIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-      <circle cx="9" cy="5" r="1" /><circle cx="15" cy="5" r="1" />
-      <circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" />
-      <circle cx="9" cy="19" r="1" /><circle cx="15" cy="19" r="1" />
-    </svg>
-  );
-}
+const getAvailableMetaFieldSet = (categories, docs) => {
+  const available = new Set();
 
-/* ─── Toggle Switch ─────────────────────────────────────── */
-
-function ToggleSwitch({ checked, onChange, disabled = false }) {
-  return (
-    <label className={styles.toggleSwitch} onClick={(e) => e.stopPropagation()}>
-      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} />
-      <span className={styles.slider} />
-    </label>
-  );
-}
-
-function getDocumentLabel(doc) {
-  return doc.parties
-    ? `${doc.caseRef || ""}: ${doc.parties}`
-    : doc.companyName || doc.documentTitle || "Untitled";
-}
-
-function getCompareDocumentHeading(doc) {
-  if (doc.parties) {
-    return {
-      eyebrow: doc.caseRef || "Case",
-      title: doc.parties,
-    };
-  }
-
-  if (doc.companyName) {
-    return {
-      eyebrow: doc.companyName,
-      title: doc.documentTitle || "Untitled",
-    };
-  }
-
-  return {
-    eyebrow: doc["Contract Type"] || DOC_TYPE_LABELS[doc.documentType] || "Document",
-    title: doc.documentTitle || doc["Contract Name"] || "Untitled",
-  };
-}
-
-function formatCompareValue(value) {
-  return value === undefined || value === null || value === "" ? "—" : value;
-}
-
-function allCompareValuesMatch(values) {
-  const normalized = values
-    .map((value) => formatCompareValue(value))
-    .map((value) => String(value).trim().toLowerCase());
-
-  if (normalized.length < 2) return true;
-  return normalized.every((value) => value === normalized[0]);
-}
-
-function getComparisonRows(cases, metaFields, sections) {
-  const metadataRows = metaFields
-    .map((field) => {
-      const values = cases.map((doc) => formatCompareValue(doc[field]));
-      return {
-        id: `meta-${field}`,
-        label: field,
-        values,
-        isDifferent: !allCompareValuesMatch(values),
-      };
-    })
-    .filter((row) => row.values.some((value) => value !== "—"));
-
-  const narrativeRows = sections
-    .filter((section) => section.enabled)
-    .map((section) => {
-      const values = cases.map((doc) => formatCompareValue(doc[section.id]));
-      return {
-        id: `section-${section.id}`,
-        label: section.label,
-        values,
-        isDifferent: !allCompareValuesMatch(values),
-      };
-    })
-    .filter((row) => row.values.some((value) => value !== "—"));
-
-  return {
-    metadataRows,
-    narrativeRows,
-    differingMetadataCount: metadataRows.filter((row) => row.isDifferent).length,
-    sharedMetadataCount: metadataRows.filter((row) => !row.isDifferent).length,
-    differingNarrativeCount: narrativeRows.filter((row) => row.isDifferent).length,
-  };
-}
-
-/* ─── Document Preview ──────────────────────────────────── */
-
-function DocumentPreview({
-  title,
-  subtitle,
-  logoUrl,
-  sections,
-  metaFields,
-  cases,
-  onRemove,
-  includeComparisonAppendix = false,
-  docTypeLabel = "Documents",
-  reportInsights = [],
-  onRemoveInsight = null,
-}) {
-  const today = new Date().toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-  return (
-    <div className={styles.docPage}>
-      <div className={styles.docHeader}>
-        {logoUrl && (
-          <div className={styles.docBrand}>
-            <img src={logoUrl} alt="Logo" className={styles.docBrandImg} />
-          </div>
-        )}
-        <div className={styles.docTitle}>{title || "Untitled Report"}</div>
-        {subtitle && <div className={styles.docSubtitle}>{subtitle}</div>}
-        <div className={styles.docMeta}>Generated {today} · {cases.length} document{cases.length !== 1 ? "s" : ""}</div>
-      </div>
-
-      {cases.length === 0 && (
-        <div className={styles.docEmpty}>
-          <p>No documents selected yet.</p>
-          <p>Go back to search results to add documents to your report.</p>
-        </div>
-      )}
-
-      {cases.map((c, idx) => {
-        const caseTitle = getDocumentLabel(c);
-        return (
-        <div key={c.id}>
-          {onRemove && (
-            <div className={styles.caseRemoveRow}>
-              <button className={styles.caseBlockRemoveBtn} onClick={() => onRemove(c.id)} title="Remove from report">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Remove from report
-              </button>
-            </div>
-          )}
-          <div className={styles.caseBlock}>
-            <div className={styles.caseTitle}>{caseTitle}</div>
-
-            {metaFields.length > 0 && (
-              <div className={styles.caseMetaGrid}>
-                {metaFields.map((f) =>
-                  c[f] !== undefined ? (
-                    <div key={f} className={styles.caseMetaItem}>
-                      <span className={styles.metaLabel}>{f}</span>
-                      <span className={styles.metaValue}>{c[f] || "—"}</span>
-                    </div>
-                  ) : null
-                )}
-              </div>
-            )}
-
-            {sections
-              .filter((s) => s.enabled && c[s.id])
-              .map((s) => (
-                <div key={s.id} className={styles.caseSection}>
-                  <div className={styles.caseSectionTitle}>{s.label}</div>
-                  <div className={styles.caseSectionBody}>{c[s.id]}</div>
-                </div>
-              ))}
-          </div>
-          {idx < cases.length - 1 && <hr className={styles.caseSeparator} />}
-        </div>
-        );
-      })}
-
-      {includeComparisonAppendix && (
-        <ComparisonAppendix
-          cases={cases}
-          metaFields={metaFields}
-          sections={sections}
-          docTypeLabel={docTypeLabel}
-        />
-      )}
-
-      {reportInsights.length > 0 && (
-        <section className={styles.insightsAppendix}>
-          <div className={styles.insightsAppendixHeader}>
-            <div className={styles.compareAppendixEyebrow}>AI Analysis</div>
-            <div className={styles.compareAppendixTitle}>
-              <SparkleIcon /> Curated Insights
-            </div>
-          </div>
-          {reportInsights.map((insight) => (
-            <div key={insight.id} className={styles.insightBlock}>
-              <div className={styles.insightQuestion}>
-                <span className={styles.insightQuestionLabel}>Q:</span> {insight.question}
-              </div>
-              <div className={styles.insightAnswer}>
-                {insight.answer.split("\n").map((line, i) => (
-                  <p key={i} className={line.startsWith("**") ? styles.aiAnswerBold : ""}>
-                    {line.replace(/\*\*/g, "")}
-                  </p>
-                ))}
-              </div>
-              {onRemoveInsight && (
-                <button
-                  className={styles.insightRemoveBtn}
-                  onClick={() => onRemoveInsight(insight.id)}
-                  title="Remove from report"
-                >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  Remove
-                </button>
-              )}
-            </div>
-          ))}
-        </section>
-      )}
-
-      <div className={styles.docFooter}>
-        <span>JibuDocs · AI-Enabled Document Management</span>
-        <span>Confidential</span>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Comparison Matrix ────────────────────────────────── */
-
-function SwapIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-      <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-    </svg>
-  );
-}
-
-function HeatmapOverview({
-  cases,
-  metadataRows,
-  narrativeRows,
-  differingMetadataCount,
-  sharedMetadataCount,
-  differingNarrativeCount,
-  docLabel,
-  includeInExport,
-  onToggleInclude,
-  onCellClick,
-}) {
-  const allRows = [
-    ...metadataRows.map((r) => ({ ...r, group: "metadata" })),
-    ...narrativeRows.map((r) => ({ ...r, group: "narrative" })),
-  ];
-
-  // For each cell, determine if that specific document's value differs from any other
-  const getCellStatus = (row, docIndex) => {
-    const val = row.values[docIndex];
-    if (val === "—") return "empty";
-    return row.isDifferent ? "diff" : "match";
-  };
-
-  return (
-    <div className={styles.compareWorkspace}>
-      <div className={styles.compareOverview}>
-        <div className={styles.compareOverviewMain}>
-          <div className={styles.compareEyebrow}>Compare selected documents</div>
-          <div className={styles.compareTitle}>{cases.length} {docLabel} at a glance</div>
-          <p className={styles.compareIntro}>
-            Each cell shows whether a field matches or differs across documents. Click any cell to drill into a side-by-side comparison.
-          </p>
-          <div className={styles.compareOverviewActions}>
-            <span
-              className={`${styles.compareConfigBadge} ${
-                includeInExport ? styles.compareConfigBadgeActive : styles.compareConfigBadgeInactive
-              }`}
-            >
-              {includeInExport ? "Included in export" : "Preview only"}
-            </span>
-            {onToggleInclude && (
-              <button className={styles.compareExportBtn} onClick={onToggleInclude}>
-                {includeInExport ? "Remove from export" : "Add comparison to export"}
-              </button>
-            )}
-          </div>
-        </div>
-        <div className={styles.compareStats}>
-          <div className={styles.compareStatCard}>
-            <span className={styles.compareStatValue}>{differingMetadataCount}</span>
-            <span className={styles.compareStatLabel}>metadata fields differ</span>
-          </div>
-          <div className={styles.compareStatCard}>
-            <span className={styles.compareStatValue}>{sharedMetadataCount}</span>
-            <span className={styles.compareStatLabel}>metadata fields match</span>
-          </div>
-          <div className={styles.compareStatCard}>
-            <span className={styles.compareStatValue}>{differingNarrativeCount}</span>
-            <span className={styles.compareStatLabel}>narrative sections differ</span>
-          </div>
-        </div>
-      </div>
-
-      {allRows.length > 0 ? (
-        <section className={styles.comparePanel}>
-          <div className={styles.comparePanelHeader}>
-            <div>
-              <div className={styles.comparePanelTitle}>Differences heatmap</div>
-              <div className={styles.comparePanelHint}>
-                Click any cell to open a detailed side-by-side comparison of two documents.
-              </div>
-            </div>
-            <div className={styles.heatmapLegend}>
-              <span className={styles.heatmapLegendItem}>
-                <span className={`${styles.heatmapDot} ${styles.heatmapDotMatch}`} /> Same
-              </span>
-              <span className={styles.heatmapLegendItem}>
-                <span className={`${styles.heatmapDot} ${styles.heatmapDotDiff}`} /> Differs
-              </span>
-              <span className={styles.heatmapLegendItem}>
-                <span className={`${styles.heatmapDot} ${styles.heatmapDotEmpty}`} /> N/A
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.heatmapContainer}>
-            <table className={styles.heatmapTable}>
-              <thead>
-                <tr>
-                  <th className={styles.heatmapCorner}>Field</th>
-                  {cases.map((doc) => {
-                    const heading = getCompareDocumentHeading(doc);
-                    const label = heading.eyebrow;
-                    return (
-                      <th key={doc.id} className={styles.heatmapDocHeader} title={`${heading.eyebrow}: ${heading.title}`}>
-                        <div className={styles.heatmapDocLabel}>{label}</div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {metadataRows.length > 0 && (
-                  <tr className={styles.heatmapGroupRow}>
-                    <td colSpan={cases.length + 1} className={styles.heatmapGroupCell}>Metadata</td>
-                  </tr>
-                )}
-                {metadataRows.map((row) => (
-                  <tr key={row.id} className={styles.heatmapRow}>
-                    <th scope="row" className={styles.heatmapFieldLabel}>
-                      <span className={styles.heatmapFieldName}>{row.label}</span>
-                      <span className={`${styles.heatmapFieldBadge} ${row.isDifferent ? styles.heatmapFieldBadgeDiff : styles.heatmapFieldBadgeSame}`}>
-                        {row.isDifferent ? "Differs" : "Same"}
-                      </span>
-                    </th>
-                    {cases.map((doc, colIdx) => {
-                      const status = getCellStatus(row, colIdx);
-                      return (
-                        <td
-                          key={`${row.id}-${doc.id}`}
-                          className={styles.heatmapCell}
-                          onClick={() => onCellClick(doc.id)}
-                          title={`${row.label}: ${row.values[colIdx]}`}
-                          aria-label={`${row.label}, ${getDocumentLabel(doc)}: ${status}`}
-                        >
-                          <span className={`${styles.heatmapDot} ${
-                            status === "diff" ? styles.heatmapDotDiff
-                              : status === "match" ? styles.heatmapDotMatch
-                              : styles.heatmapDotEmpty
-                          }`} />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {narrativeRows.length > 0 && (
-                  <tr className={styles.heatmapGroupRow}>
-                    <td colSpan={cases.length + 1} className={styles.heatmapGroupCell}>Narrative Sections</td>
-                  </tr>
-                )}
-                {narrativeRows.map((row) => (
-                  <tr key={row.id} className={styles.heatmapRow}>
-                    <th scope="row" className={styles.heatmapFieldLabel}>
-                      <span className={styles.heatmapFieldName}>{row.label}</span>
-                      <span className={`${styles.heatmapFieldBadge} ${row.isDifferent ? styles.heatmapFieldBadgeDiff : styles.heatmapFieldBadgeSame}`}>
-                        {row.isDifferent ? "Differs" : "Same"}
-                      </span>
-                    </th>
-                    {cases.map((doc, colIdx) => {
-                      const status = getCellStatus(row, colIdx);
-                      return (
-                        <td
-                          key={`${row.id}-${doc.id}`}
-                          className={styles.heatmapCell}
-                          onClick={() => onCellClick(doc.id)}
-                          title={`${row.label}: ${String(row.values[colIdx]).substring(0, 120)}${String(row.values[colIdx]).length > 120 ? "…" : ""}`}
-                          aria-label={`${row.label}, ${getDocumentLabel(doc)}: ${status}`}
-                        >
-                          <span className={`${styles.heatmapDot} ${
-                            status === "diff" ? styles.heatmapDotDiff
-                              : status === "match" ? styles.heatmapDotMatch
-                              : styles.heatmapDotEmpty
-                          }`} />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : (
-        <div className={styles.compareEmpty}>
-          <div className={styles.compareEmptyTitle}>Nothing to compare yet</div>
-          <p className={styles.compareEmptyText}>
-            Turn on metadata fields or sections in the left panel to populate the comparison view.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── AI Compare Assistant ────────────────────────────── */
-
-function SparkleIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function simulateAIAnswer(question, leftDoc, rightDoc, narrativeRows) {
-  const leftLabel = getDocumentLabel(leftDoc);
-  const rightLabel = getDocumentLabel(rightDoc);
-  const q = question.toLowerCase();
-
-  // Build context from narrative sections
-  const differingSections = narrativeRows.filter((r) => r.isDifferent).map((r) => r.label);
-  const sameSections = narrativeRows.filter((r) => !r.isDifferent).map((r) => r.label);
-
-  if (q.includes("differ") || q.includes("different") || q.includes("difference")) {
-    const diffs = differingSections.length > 0
-      ? differingSections.join(", ")
-      : "no narrative sections";
-    return `The two documents differ in the following narrative sections: ${diffs}.\n\n` +
-      (differingSections.length > 0
-        ? narrativeRows
-            .filter((r) => r.isDifferent)
-            .map((r) => `**${r.label}:**\n• ${leftLabel}: "${String(r.values[0]).substring(0, 150)}…"\n• ${rightLabel}: "${String(r.values[1]).substring(0, 150)}…"`)
-            .join("\n\n")
-        : "Both documents share identical content across all enabled narrative sections.");
-  }
-
-  if (q.includes("similar") || q.includes("common") || q.includes("same") || q.includes("share")) {
-    return sameSections.length > 0
-      ? `Both documents share the same content in: ${sameSections.join(", ")}.\n\nThis suggests common ground in these areas, which could indicate shared legal principles or factual circumstances.`
-      : "The two documents do not share identical content in any of the enabled narrative sections.";
-  }
-
-  if (q.includes("summary") || q.includes("summarize") || q.includes("summarise") || q.includes("overview")) {
-    const total = narrativeRows.length;
-    const diffCount = differingSections.length;
-    return `**Comparison summary: ${leftLabel} vs ${rightLabel}**\n\n` +
-      `Out of ${total} narrative section${total !== 1 ? "s" : ""}, ${diffCount} differ${diffCount === 1 ? "s" : ""} and ${total - diffCount} match${total - diffCount === 1 ? "es" : ""}.\n\n` +
-      (diffCount > 0 ? `Key differences appear in: ${differingSections.join(", ")}.\n\n` : "") +
-      narrativeRows
-        .slice(0, 3)
-        .map((r) => `**${r.label}** — ${r.isDifferent ? "Differs" : "Same"}${r.isDifferent ? `: the first document focuses on "${String(r.values[0]).substring(0, 80)}…" while the second addresses "${String(r.values[1]).substring(0, 80)}…"` : ""}`)
-        .join("\n\n");
-  }
-
-  if (q.includes("argument") || q.includes("appellant") || q.includes("respondent")) {
-    const relevantRows = narrativeRows.filter(
-      (r) => r.label.toLowerCase().includes("argument") || r.label.toLowerCase().includes("appellant") || r.label.toLowerCase().includes("respondent")
-    );
-    if (relevantRows.length > 0) {
-      return relevantRows
-        .map((r) => `**${r.label}** (${r.isDifferent ? "Differs" : "Same"}):\n• ${leftLabel}: "${String(r.values[0]).substring(0, 200)}…"\n• ${rightLabel}: "${String(r.values[1]).substring(0, 200)}…"`)
-        .join("\n\n");
+  for (const fields of Object.values(categories)) {
+    for (const field of fields) {
+      if (docs.some((doc) => hasRenderableMetaField(doc, field))) {
+        available.add(field);
+      }
     }
   }
 
-  if (q.includes("finding") || q.includes("decision") || q.includes("outcome") || q.includes("ruling")) {
-    const relevantRows = narrativeRows.filter(
-      (r) => r.label.toLowerCase().includes("finding") || r.label.toLowerCase().includes("decision")
-    );
-    if (relevantRows.length > 0) {
-      return relevantRows
-        .map((r) => `**${r.label}** (${r.isDifferent ? "Differs" : "Same"}):\n• ${leftLabel}: "${String(r.values[0]).substring(0, 200)}…"\n• ${rightLabel}: "${String(r.values[1]).substring(0, 200)}…"`)
-        .join("\n\n");
-    }
-  }
-
-  // Default: general comparison
-  return `**Comparing ${leftLabel} and ${rightLabel}**\n\n` +
-    `Across ${narrativeRows.length} narrative section${narrativeRows.length !== 1 ? "s" : ""}, ` +
-    `${differingSections.length} show${differingSections.length === 1 ? "s" : ""} differences` +
-    (differingSections.length > 0 ? ` (${differingSections.join(", ")})` : "") +
-    ` and ${sameSections.length} match` +
-    (sameSections.length > 0 ? ` (${sameSections.join(", ")})` : "") +
-    `.\n\nTo dive deeper, try asking about specific sections like "How do the appellant's arguments differ?" or "Summarize the tribunal findings."`;
-}
-
-function CompareAIAssistant({ leftDoc, rightDoc, narrativeRows, onAddToReport }) {
-  const [question, setQuestion] = useState("");
-  const [conversations, setConversations] = useState([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [editingIdx, setEditingIdx] = useState(null);
-  const [editText, setEditText] = useState("");
-  const [addedToReport, setAddedToReport] = useState(new Set());
-  const inputRef = useRef(null);
-
-  const suggestedQuestions = [
-    "Summarize the key differences between these documents",
-    "What do these documents have in common?",
-    "Compare the appellant's arguments",
-    "How do the tribunal findings differ?",
-  ];
-
-  const handleAsk = (q) => {
-    const queryText = q || question.trim();
-    if (!queryText || isGenerating) return;
-
-    setIsGenerating(true);
-    setQuestion("");
-
-    // Simulate AI delay
-    const answer = simulateAIAnswer(queryText, leftDoc, rightDoc, narrativeRows);
-    setTimeout(() => {
-      setConversations((prev) => [...prev, { question: queryText, answer, editedAnswer: null }]);
-      setIsGenerating(false);
-    }, 600 + Math.random() * 800);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleAsk();
-    }
-  };
-
-  const startEdit = (idx) => {
-    setEditingIdx(idx);
-    setEditText(conversations[idx].editedAnswer || conversations[idx].answer);
-  };
-
-  const saveEdit = (idx) => {
-    setConversations((prev) =>
-      prev.map((c, i) => (i === idx ? { ...c, editedAnswer: editText } : c))
-    );
-    setEditingIdx(null);
-    setEditText("");
-  };
-
-  const cancelEdit = () => {
-    setEditingIdx(null);
-    setEditText("");
-  };
-
-  return (
-    <section className={styles.comparePanel}>
-      <div className={styles.comparePanelHeader}>
-        <div>
-          <div className={styles.comparePanelTitle}>
-            <span className={styles.aiTitleIcon}><SparkleIcon /></span>
-            AI Narrative Analysis
-          </div>
-          <div className={styles.comparePanelHint}>
-            Ask a question about these documents and get an AI-generated comparison. You can edit any response.
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.aiBody}>
-        {/* Suggested questions — show when no conversations yet */}
-        {conversations.length === 0 && !isGenerating && (
-          <div className={styles.aiSuggestions}>
-            <div className={styles.aiSuggestionsLabel}>Suggested questions</div>
-            <div className={styles.aiSuggestionsGrid}>
-              {suggestedQuestions.map((sq) => (
-                <button
-                  key={sq}
-                  className={styles.aiSuggestionBtn}
-                  onClick={() => handleAsk(sq)}
-                >
-                  {sq}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Conversation thread */}
-        {conversations.map((conv, idx) => (
-          <div key={idx} className={styles.aiConversation}>
-            <div className={styles.aiQuestion}>
-              <div className={styles.aiQuestionLabel}>You asked</div>
-              <div className={styles.aiQuestionText}>{conv.question}</div>
-            </div>
-            <div className={styles.aiAnswer}>
-              <div className={styles.aiAnswerHeader}>
-                <div className={styles.aiAnswerLabel}>
-                  <SparkleIcon /> AI Analysis
-                  {conv.editedAnswer && <span className={styles.aiEditedBadge}>Edited</span>}
-                </div>
-                {editingIdx !== idx && (
-                  <button className={styles.aiEditBtn} onClick={() => startEdit(idx)}>
-                    <PencilIcon /> Edit
-                  </button>
-                )}
-              </div>
-              {editingIdx === idx ? (
-                <div className={styles.aiEditArea}>
-                  <textarea
-                    className={styles.aiEditTextarea}
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    rows={8}
-                  />
-                  <div className={styles.aiEditActions}>
-                    <button className={styles.aiEditSaveBtn} onClick={() => saveEdit(idx)}>Save</button>
-                    <button className={styles.aiEditCancelBtn} onClick={cancelEdit}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className={styles.aiAnswerBody}>
-                    {(conv.editedAnswer || conv.answer).split("\n").map((line, i) => (
-                      <p key={i} className={line.startsWith("**") ? styles.aiAnswerBold : ""}>
-                        {line.replace(/\*\*/g, "")}
-                      </p>
-                    ))}
-                  </div>
-                  {onAddToReport && (
-                    <div className={styles.aiAnswerFooter}>
-                      <button
-                        className={`${styles.aiAddToReportBtn} ${addedToReport.has(idx) ? styles.aiAddToReportBtnAdded : ""}`}
-                        onClick={() => {
-                          if (!addedToReport.has(idx)) {
-                            onAddToReport({
-                              question: conv.question,
-                              answer: conv.editedAnswer || conv.answer,
-                            });
-                            setAddedToReport((prev) => new Set(prev).add(idx));
-                          }
-                        }}
-                        disabled={addedToReport.has(idx)}
-                      >
-                        {addedToReport.has(idx) ? (
-                          <><CheckIcon /> Added to report</>
-                        ) : (
-                          <><PlusIcon /> Add to report</>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* Loading indicator */}
-        {isGenerating && (
-          <div className={styles.aiGenerating}>
-            <div className={styles.aiGeneratingDots}>
-              <span /><span /><span />
-            </div>
-            <span>Analyzing documents...</span>
-          </div>
-        )}
-
-        {/* Input bar — always visible at bottom */}
-        <div className={styles.aiInputBar}>
-          <input
-            ref={inputRef}
-            type="text"
-            className={styles.aiInput}
-            placeholder="Ask a question about these two documents..."
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isGenerating}
-          />
-          <button
-            className={styles.aiSendBtn}
-            onClick={() => handleAsk()}
-            disabled={!question.trim() || isGenerating}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PairwiseDetail({
-  cases,
-  metaFields,
-  sections,
-  leftDocId,
-  rightDocId,
-  onChangeLeft,
-  onChangeRight,
-  onSwap,
-  onBack,
-  onAddToReport = null,
-}) {
-  const leftDoc = cases.find((c) => c.id === leftDocId) || cases[0];
-  const rightDoc = cases.find((c) => c.id === rightDocId) || cases[1];
-  const pair = [leftDoc, rightDoc].filter(Boolean);
-  const [metadataExpanded, setMetadataExpanded] = useState(false);
-
-  const {
-    metadataRows,
-    narrativeRows,
-  } = pair.length === 2 ? getComparisonRows(pair, metaFields, sections) : { metadataRows: [], narrativeRows: [] };
-
-  const differCount = metadataRows.filter((r) => r.isDifferent).length;
-
-  return (
-    <div className={styles.compareWorkspace}>
-      {/* Picker header */}
-      <div className={styles.pairwiseHeader}>
-        <button className={styles.pairwiseBackBtn} onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-          </svg>
-          Heatmap overview
-        </button>
-        <div className={styles.pairwisePickerRow}>
-          <select
-            className={styles.pairwisePicker}
-            value={leftDoc?.id || ""}
-            onChange={(e) => onChangeLeft(e.target.value)}
-          >
-            {cases.map((doc) => (
-              <option key={doc.id} value={doc.id} disabled={doc.id === rightDoc?.id}>
-                {getDocumentLabel(doc)}
-              </option>
-            ))}
-          </select>
-          <button className={styles.pairwiseSwapBtn} onClick={onSwap} title="Swap documents">
-            <SwapIcon />
-          </button>
-          <select
-            className={styles.pairwisePicker}
-            value={rightDoc?.id || ""}
-            onChange={(e) => onChangeRight(e.target.value)}
-          >
-            {cases.map((doc) => (
-              <option key={doc.id} value={doc.id} disabled={doc.id === leftDoc?.id}>
-                {getDocumentLabel(doc)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* AI Narrative Analysis — shown first, prominently */}
-      {pair.length === 2 && narrativeRows.length > 0 && (
-        <CompareAIAssistant
-          leftDoc={leftDoc}
-          rightDoc={rightDoc}
-          narrativeRows={narrativeRows}
-          onAddToReport={onAddToReport}
-        />
-      )}
-
-      {/* Metadata comparison — collapsible, below AI analysis */}
-      {metadataRows.length > 0 && (
-        <section className={styles.comparePanel}>
-          <button
-            className={styles.comparePanelHeaderToggle}
-            onClick={() => setMetadataExpanded((v) => !v)}
-            aria-expanded={metadataExpanded}
-          >
-            <div>
-              <div className={styles.comparePanelTitle}>
-                Metadata comparison
-                <span className={styles.metadataBadge}>
-                  {differCount} differ{differCount !== 1 ? "" : "s"} &middot; {metadataRows.length} fields
-                </span>
-              </div>
-              <div className={styles.comparePanelHint}>
-                Side-by-side view of the two selected documents.
-              </div>
-            </div>
-            <svg
-              className={`${styles.collapseChevron} ${metadataExpanded ? styles.collapseChevronOpen : ""}`}
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {metadataExpanded && (
-            <div className={styles.compareMatrix}>
-              <table className={styles.compareTable}>
-                <thead>
-                  <tr>
-                    <th className={styles.compareCorner}>Field</th>
-                    {pair.map((doc) => {
-                      const heading = getCompareDocumentHeading(doc);
-                      return (
-                        <th key={doc.id} className={styles.compareDocHeader}>
-                          <div className={styles.compareDocEyebrow}>{heading.eyebrow}</div>
-                          <div className={styles.compareDocTitle}>{heading.title}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {metadataRows.map((row) => (
-                    <tr key={row.id} className={row.isDifferent ? styles.compareDiffRow : ""}>
-                      <th scope="row" className={styles.compareFieldLabel}>
-                        <div className={styles.compareFieldName}>{row.label}</div>
-                        <span
-                          className={`${styles.compareFieldState} ${
-                            row.isDifferent ? styles.compareFieldStateDiff : styles.compareFieldStateSame
-                          }`}
-                        >
-                          {row.isDifferent ? "Differs" : "Same"}
-                        </span>
-                      </th>
-                      {row.values.map((value, index) => (
-                        <td
-                          key={`${row.id}-${pair[index].id}`}
-                          className={`${styles.compareCell} ${
-                            row.isDifferent ? styles.compareCellDiff : styles.compareCellSame
-                          }`}
-                        >
-                          {value}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
-      {metadataRows.length === 0 && narrativeRows.length === 0 && (
-        <div className={styles.compareEmpty}>
-          <div className={styles.compareEmptyTitle}>Nothing to compare yet</div>
-          <p className={styles.compareEmptyText}>
-            Turn on metadata fields or sections in the left panel to populate the comparison view.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ComparisonMatrix({
-  cases,
-  metaFields,
-  sections,
-  docTypeLabel,
-  includeInExport = false,
-  onToggleInclude = null,
-  onAddToReport = null,
-}) {
-  const [compareView, setCompareView] = useState("pairwise"); // "overview" | "pairwise"
-  const [leftDocId, setLeftDocId] = useState(cases[0]?.id || null);
-  const [rightDocId, setRightDocId] = useState(cases[1]?.id || null);
-
-  // Reset doc selections if cases change and selected docs are no longer available
-  const caseIds = useMemo(() => new Set(cases.map((c) => c.id)), [cases]);
-  const safeLeftId = caseIds.has(leftDocId) ? leftDocId : cases[0]?.id || null;
-  const safeRightId = caseIds.has(rightDocId) && rightDocId !== safeLeftId ? rightDocId : cases.find((c) => c.id !== safeLeftId)?.id || null;
-
-  if (safeLeftId !== leftDocId) setLeftDocId(safeLeftId);
-  if (safeRightId !== rightDocId) setRightDocId(safeRightId);
-
-  if (cases.length < 2) {
-    return (
-      <div className={styles.compareEmpty}>
-        <div className={styles.compareEmptyTitle}>Compare Documents</div>
-        <p className={styles.compareEmptyText}>Select at least 2 documents to compare.</p>
-      </div>
-    );
-  }
-
-  const {
-    metadataRows,
-    narrativeRows,
-    differingMetadataCount,
-    sharedMetadataCount,
-    differingNarrativeCount,
-  } = getComparisonRows(cases, metaFields, sections);
-  const docLabel = `${docTypeLabel} document${cases.length !== 1 ? "s" : ""}`;
-
-  const handleCellClick = (docId) => {
-    // Set the clicked doc as the right doc, keep current left (or pick first other doc)
-    const newRight = docId;
-    const newLeft = safeLeftId === docId ? cases.find((c) => c.id !== docId)?.id || null : safeLeftId;
-    setLeftDocId(newLeft);
-    setRightDocId(newRight);
-    setCompareView("pairwise");
-  };
-
-  const handleSwap = () => {
-    setLeftDocId(safeRightId);
-    setRightDocId(safeLeftId);
-  };
-
-  if (compareView === "pairwise") {
-    return (
-      <PairwiseDetail
-        cases={cases}
-        metaFields={metaFields}
-        sections={sections}
-        leftDocId={safeLeftId}
-        rightDocId={safeRightId}
-        onChangeLeft={setLeftDocId}
-        onChangeRight={setRightDocId}
-        onSwap={handleSwap}
-        onBack={() => setCompareView("overview")}
-        onAddToReport={onAddToReport}
-      />
-    );
-  }
-
-  return (
-    <HeatmapOverview
-      cases={cases}
-      metadataRows={metadataRows}
-      narrativeRows={narrativeRows}
-      differingMetadataCount={differingMetadataCount}
-      sharedMetadataCount={sharedMetadataCount}
-      differingNarrativeCount={differingNarrativeCount}
-      docLabel={docLabel}
-      includeInExport={includeInExport}
-      onToggleInclude={onToggleInclude}
-      onCellClick={handleCellClick}
-    />
-  );
-}
+  return available;
+};
 
 /* ─── Main Report Page ──────────────────────────────────── */
-
-function ComparisonAppendix({ cases, metaFields, sections, docTypeLabel }) {
-  if (cases.length < 2) return null;
-
-  const {
-    metadataRows,
-    differingMetadataCount,
-    sharedMetadataCount,
-  } = getComparisonRows(cases, metaFields, sections);
-
-  if (metadataRows.length === 0) return null;
-
-  const useTransposed = cases.length > 3;
-
-  // Build short numbered labels for transposed layout
-  const docNumbers = cases.map((doc, i) => ({
-    num: i + 1,
-    doc,
-    label: getDocumentLabel(doc),
-  }));
-
-  // Build value distribution for differences summary
-  const differenceSummaries = metadataRows
-    .filter((row) => row.isDifferent)
-    .map((row) => {
-      const counts = {};
-      row.values.forEach((val) => {
-        counts[val] = (counts[val] || 0) + 1;
-      });
-      const groups = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([val, count]) => `${count}/${cases.length}: ${val}`);
-      return { label: row.label, groups };
-    });
-
-  return (
-    <section className={styles.compareAppendix}>
-      <div className={styles.compareAppendixHeader}>
-        <div className={styles.compareAppendixEyebrow}>Appendix</div>
-        <div className={styles.compareAppendixTitle}>Comparison Summary</div>
-        <p className={styles.compareAppendixIntro}>
-          {useTransposed
-            ? `Cross-reference of ${cases.length} ${docTypeLabel.toLowerCase()} documents across ${metadataRows.length} metadata fields.`
-            : `Side-by-side comparison of the selected ${docTypeLabel.toLowerCase()} documents.`}
-        </p>
-      </div>
-
-      <div className={styles.compareAppendixStats}>
-        <div className={styles.compareAppendixStat}>
-          <span className={styles.compareAppendixStatValue}>{cases.length}</span>
-          <span className={styles.compareAppendixStatLabel}>documents compared</span>
-        </div>
-        <div className={styles.compareAppendixStat}>
-          <span className={styles.compareAppendixStatValue}>{differingMetadataCount}</span>
-          <span className={styles.compareAppendixStatLabel}>metadata fields differ</span>
-        </div>
-        <div className={styles.compareAppendixStat}>
-          <span className={styles.compareAppendixStatValue}>{sharedMetadataCount}</span>
-          <span className={styles.compareAppendixStatLabel}>metadata fields match</span>
-        </div>
-      </div>
-
-      {/* Differences summary — value distribution per differing field */}
-      {differenceSummaries.length > 0 && useTransposed && (
-        <div className={styles.compareAppendixBlock}>
-          <div className={styles.compareAppendixBlockTitle}>Key differences</div>
-          <div className={styles.diffSummaryGrid}>
-            {differenceSummaries.map((item) => (
-              <div key={item.label} className={styles.diffSummaryCard}>
-                <div className={styles.diffSummaryField}>{item.label}</div>
-                <div className={styles.diffSummaryValues}>
-                  {item.groups.map((g, i) => (
-                    <span key={i} className={styles.diffSummaryChip}>{g}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {metadataRows.length > 0 && (
-        <div className={styles.compareAppendixBlock}>
-          <div className={styles.compareAppendixBlockTitle}>Metadata comparison</div>
-
-          {/* Document legend for transposed layout */}
-          {useTransposed && (
-            <div className={styles.docLegend}>
-              {docNumbers.map(({ num, label }) => (
-                <div key={num} className={styles.docLegendItem}>
-                  <span className={styles.docLegendNum}>{num}</span>
-                  <span className={styles.docLegendLabel}>{label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className={useTransposed ? undefined : styles.compareAppendixTableWrap}>
-            {useTransposed ? (
-              <>
-                {/* Transposed table: only differing fields as columns */}
-                {metadataRows.filter((r) => r.isDifferent).length > 0 && (
-                  <table className={styles.compareAppendixTableTransposed}>
-                    <thead>
-                      <tr>
-                        <th className={styles.compareAppendixDocNumCol}>#</th>
-                        {metadataRows.filter((r) => r.isDifferent).map((row) => (
-                          <th key={row.id}>{row.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cases.map((doc, docIdx) => (
-                        <tr key={doc.id}>
-                          <th scope="row" className={styles.compareAppendixDocNumCell}>
-                            {docIdx + 1}
-                          </th>
-                          {metadataRows.filter((r) => r.isDifferent).map((row) => (
-                            <td
-                              key={`${row.id}-${doc.id}`}
-                              className={styles.compareAppendixCellDiff}
-                            >
-                              {row.values[docIdx]}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-
-                {/* Shared fields listed compactly — no table needed */}
-                {metadataRows.filter((r) => !r.isDifferent).length > 0 && (
-                  <div className={styles.sharedFieldsList}>
-                    <div className={styles.sharedFieldsTitle}>Shared across all documents</div>
-                    <div className={styles.sharedFieldsItems}>
-                      {metadataRows.filter((r) => !r.isDifferent).map((row) => (
-                        <span key={row.id} className={styles.sharedFieldsItem}>
-                          <strong>{row.label}:</strong> {row.values[0]}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              /* Original: fields as rows, documents as columns */
-              <table className={styles.compareAppendixTable}>
-                <thead>
-                  <tr>
-                    <th>Field</th>
-                    {cases.map((doc) => (
-                      <th key={doc.id}>{getDocumentLabel(doc)}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {metadataRows.map((row) => (
-                    <tr key={row.id}>
-                      <th scope="row">{row.label}</th>
-                      {row.values.map((value, index) => (
-                        <td
-                          key={`${row.id}-${cases[index].id}`}
-                          className={row.isDifferent ? styles.compareAppendixCellDiff : ""}
-                        >
-                          {value}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-    </section>
-  );
-}
 
 export default function ReportPage() {
   const navigate = useNavigate();
@@ -1226,10 +88,14 @@ export default function ReportPage() {
     () => selectedIds.filter((id) => SAMPLE_CASES[id]).map((id) => ({ id, ...SAMPLE_CASES[id] })),
     [selectedIds]
   );
+  const initialAvailableMetaFields = useMemo(
+    () => getAvailableMetaFieldSet(typeFieldCategories, caseEntries),
+    [caseEntries, typeFieldCategories]
+  );
 
   // Report config state
   const [reportStep, setReportStep] = useState(1);
-  const [viewTab, setViewTab] = useState(initialMode); // "report" | "compare"
+  const [viewTab, setViewTab] = useState(initialMode);
   const [includeComparisonAppendix, setIncludeComparisonAppendix] = useState(initialMode === "compare");
   const [reportInsights, setReportInsights] = useState([]);
   const addInsightToReport = (insight) => {
@@ -1239,7 +105,9 @@ export default function ReportPage() {
     setReportInsights((prev) => prev.filter((i) => i.id !== id));
   };
   const [sections, setSections] = useState(() => typeSections.map((s) => ({ ...s })));
-  const [selectedMetaFields, setSelectedMetaFields] = useState([...typeDefaultMetaFields]);
+  const [selectedMetaFields, setSelectedMetaFields] = useState(() =>
+    typeDefaultMetaFields.filter((field) => initialAvailableMetaFields.has(field))
+  );
   const [reportTitle, setReportTitle] = useState(docType === "case-law" ? "TAT Summaries" : `${docTypeLabel} Report`);
   const [reportSubtitle, setReportSubtitle] = useState(docType === "case-law" ? "January 2026 Edition" : "");
   const [logoUrl, setLogoUrl] = useState(darkLogo);
@@ -1250,13 +118,12 @@ export default function ReportPage() {
   const [includedCaseIds, setIncludedCaseIds] = useState(() =>
     new Set(caseEntries.slice(0, MAX_REPORT_DOCS).map((c) => c.id))
   );
-  const sourceContextLabel = isSelectionSource ? "One-time export" : "Recurring subscription";
   const sourceLabel = isSelectionSource
     ? `${caseEntries.length} hand-picked document${caseEntries.length !== 1 ? "s" : ""}`
     : reportSource?.query
       ? `Search: "${reportSource.query}"`
       : "Current search";
-  const headerCountLabel = isSelectionSource
+  const legacyHeaderCountLabel = isSelectionSource
     ? `${caseEntries.length} selected document${caseEntries.length !== 1 ? "s" : ""}`
     : `Subscription · ${caseEntries.length} document${caseEntries.length !== 1 ? "s" : ""}`;
   const canSubscribe = !isSelectionSource;
@@ -1265,18 +132,31 @@ export default function ReportPage() {
     () => caseEntries.filter((c) => includedCaseIds.has(c.id)),
     [caseEntries, includedCaseIds]
   );
-  const canCompare = includedCases.length >= 2;
-  const shouldIncludeComparisonAppendix = includeComparisonAppendix && canCompare;
-  const activeViewTab = canCompare ? viewTab : "report";
+  const metadataSourceCases = includedCases.length > 0 ? includedCases : caseEntries;
+  const availableMetaFieldSet = useMemo(
+    () => getAvailableMetaFieldSet(typeFieldCategories, metadataSourceCases),
+    [metadataSourceCases, typeFieldCategories]
+  );
+  const visibleFieldCategories = useMemo(
+    () =>
+      Object.entries(typeFieldCategories)
+        .map(([category, fields]) => [category, fields.filter((field) => availableMetaFieldSet.has(field))])
+        .filter(([, fields]) => fields.length > 0),
+    [availableMetaFieldSet, typeFieldCategories]
+  );
+  const activeSelectedMetaFields = useMemo(
+    () => selectedMetaFields.filter((field) => availableMetaFieldSet.has(field)),
+    [availableMetaFieldSet, selectedMetaFields]
+  );
 
   const openCompareView = () => {
-    if (!canCompare) return;
+    if (!canCompareInCurrentMode) return;
     setViewTab("compare");
   };
 
   const openCompareFromExport = () => {
     setReportStep(1);
-    if (canCompare) {
+    if (canCompareInCurrentMode) {
       openCompareView();
     }
   };
@@ -1303,10 +183,57 @@ export default function ReportPage() {
     });
   };
 
-  // Delivery state — default to subscription for search-based, one-off for selection
-  const [deliveryMode, setDeliveryMode] = useState(isSelectionSource ? "one-off" : "subscription"); // "one-off" | "subscription"
-  const [subscriptionFrequency, setSubscriptionFrequency] = useState("weekly"); // "weekly" | "monthly"
-  const [deliveryMethod, setDeliveryMethod] = useState("folder"); // "folder" | "email"
+  // Delivery state
+  const [deliveryMode, setDeliveryMode] = useState(isSelectionSource ? "one-off" : "subscription");
+  const [subscriptionFrequency, setSubscriptionFrequency] = useState("weekly");
+  const [deliveryMethod, setDeliveryMethod] = useState("folder");
+  const canCompare = includedCases.length >= 2;
+  const isSubscriptionDelivery = canSubscribe && deliveryMode === "subscription";
+  const canCompareInCurrentMode = canCompare && !isSubscriptionDelivery;
+  const shouldIncludeComparisonAppendix = includeComparisonAppendix && canCompareInCurrentMode;
+  const activeViewTab = canCompareInCurrentMode ? viewTab : "report";
+  const sourceContextLabel = isSelectionSource
+    ? "One-time export"
+    : isSubscriptionDelivery
+      ? "Recurring subscription"
+      : "One-off snapshot";
+  const sourceEyebrow = isSelectionSource
+    ? "One-Time Export"
+    : isSubscriptionDelivery
+      ? "Search Subscription"
+      : "Search Snapshot";
+  const sourceBadgeLabel = isSelectionSource
+    ? "One-time"
+    : isSubscriptionDelivery
+      ? "Recurring"
+      : "One-off";
+  const currentHeaderCountLabel = isSelectionSource
+    ? legacyHeaderCountLabel
+    : `${isSubscriptionDelivery ? "Subscription" : "Snapshot"} | ${caseEntries.length} document${caseEntries.length !== 1 ? "s" : ""}`;
+  const sourceNote = isSubscriptionDelivery
+    ? `This report will automatically include up to ${MAX_REPORT_DOCS} of the most recent documents matching your search filters each time it is generated.`
+    : "This one-off snapshot uses the current search sample shown in the preview.";
+  const sourceCompareHintTitle = isSubscriptionDelivery ? "Comparison unavailable" : "Comparison available";
+  const sourceCompareHintText = isSubscriptionDelivery
+    ? "Switch delivery mode to One-off Snapshot in Save & Export if you want to compare the current documents."
+    : `You can export the report and append a side-by-side comparison of the ${includedCases.length} included documents.`;
+  const comparisonHelperText = !canCompare
+    ? "Select at least 2 documents to unlock comparison in the builder."
+    : isSubscriptionDelivery
+      ? "Comparison is available only for one-off snapshots. Switch delivery mode in Save & Export if you want to compare the current documents."
+      : "The exported report can end with a comparison appendix based on the metadata fields and narrative sections you enabled.";
+  const comparisonEmptyText = !canCompare
+    ? "Comparison becomes available once two documents are included."
+    : "Comparison is turned off while this report is set to Subscription.";
+  const compareTabTitle = !canCompare
+    ? "Select at least 2 documents to compare"
+    : isSubscriptionDelivery
+      ? "Comparison is available only for one-off snapshots"
+      : undefined;
+  const searchPreviewTitle = isSubscriptionDelivery ? "Subscription Preview" : "Snapshot Preview";
+  const searchPreviewDescription = isSubscriptionDelivery
+    ? `Showing a sample of current results. Each report cycle will auto-select up to ${MAX_REPORT_DOCS} most recent matching documents.`
+    : "Showing the current search sample for this one-off snapshot.";
 
   const selectDeliveryMode = (mode) => {
     if (mode === "subscription" && !canSubscribe) return;
@@ -1373,9 +300,8 @@ export default function ReportPage() {
           </div>
           Report Builder
         </div>
-        <span className={styles.headerCount}>{headerCountLabel}</span>
+        <span className={styles.headerCount}>{currentHeaderCountLabel}</span>
       </div>
-      {/* Mode indicator removed — shown in config panel instead */}
 
       {/* ── Stepper ── */}
       <div className={styles.stepper}>
@@ -1426,18 +352,18 @@ export default function ReportPage() {
             {/* Left: Config */}
             <div className={styles.configLeft}>
               <div className={styles.configScroll}>
-                {/* Source Card — prominent mode indicator */}
+                {/* Source Card */}
                 <div className={`${styles.configSection} ${styles.sourceSection}`}>
                   <div className={styles.sourceCard}>
                     <div className={styles.sourceCardTop}>
                       <div>
                         <div className={styles.sourceEyebrow}>
-                          {isSelectionSource ? "One-Time Export" : "Search Subscription"}
+                          {sourceEyebrow}
                         </div>
                         <div className={styles.sourceTitle}>{sourceLabel}</div>
                       </div>
                       <span className={`${styles.sourceBadge} ${isSelectionSource ? styles.sourceBadgeSelection : styles.sourceBadgeSearch}`}>
-                        {isSelectionSource ? "One-time" : "Recurring"}
+                        {sourceBadgeLabel}
                       </span>
                     </div>
                     <div className={styles.sourceMetaRow}>
@@ -1446,14 +372,14 @@ export default function ReportPage() {
                     </div>
                     {!isSelectionSource && (
                       <p className={styles.sourceNote}>
-                        This report will automatically include up to {MAX_REPORT_DOCS} of the most recent documents matching your search filters each time it is generated.
+                        {sourceNote}
                       </p>
                     )}
                     {canCompare && (
                       <div className={styles.sourceCompareHint}>
-                        <div className={styles.sourceCompareHintTitle}>Comparison available</div>
+                        <div className={styles.sourceCompareHintTitle}>{sourceCompareHintTitle}</div>
                         <div className={styles.sourceCompareHintText}>
-                          You can export the report and append a side-by-side comparison of the {includedCases.length} selected documents.
+                          {sourceCompareHintText}
                         </div>
                       </div>
                     )}
@@ -1539,22 +465,33 @@ export default function ReportPage() {
                     <span className={styles.csNum}>C</span> Metadata Fields
                   </div>
                   <p className={styles.configHint}>Choose which fields appear on each case.</p>
-                  {Object.entries(typeFieldCategories).map(([cat, fields]) => (
-                    <div key={cat}>
-                      <div className={styles.fieldCategory}>{cat}</div>
-                      <div className={styles.fieldPillList}>
-                        {fields.map((f) => (
-                          <span
-                            key={f}
-                            className={`${styles.fieldPill} ${selectedMetaFields.includes(f) ? styles.fieldPillSelected : ""}`}
-                            onClick={() => toggleMetaField(f)}
-                          >
-                            {f}
-                          </span>
-                        ))}
+                  {visibleFieldCategories.length > 0 ? (
+                    visibleFieldCategories.map(([cat, fields]) => (
+                      <div key={cat}>
+                        <div className={styles.fieldCategory}>{cat}</div>
+                        <div className={styles.fieldPillList}>
+                          {fields.map((f) => {
+                            const selected = activeSelectedMetaFields.includes(f);
+                            return (
+                              <button
+                                type="button"
+                                key={f}
+                                className={`${styles.fieldPill} ${selected ? styles.fieldPillSelected : ""}`}
+                                aria-pressed={selected}
+                                onClick={() => toggleMetaField(f)}
+                              >
+                                {f}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className={styles.fieldEmptyState}>
+                      No metadata fields are available for the currently selected documents.
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 <div className={`${styles.configSection} ${styles.comparisonAppendixSection}`}>
@@ -1562,25 +499,23 @@ export default function ReportPage() {
                     <span className={styles.csNum}>B</span> Compare Documents
                   </div>
                   <p className={styles.configHint}>
-                    Add a side-by-side comparison to the end of the exported report when 2 or more documents are selected.
+                    Add a side-by-side comparison to the end of the exported report when 2 or more documents are included.
                   </p>
-                  <div className={`${styles.compareConfigCard} ${!canCompare ? styles.compareConfigCardDisabled : ""}`}>
+                  <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
                     <div className={styles.compareConfigTop}>
                       <div>
                         <div className={styles.compareConfigTitle}>Add comparison to export</div>
                         <div className={styles.compareConfigText}>
-                          {canCompare
-                            ? "The exported report can end with a comparison appendix based on the metadata fields and narrative sections you enabled."
-                            : "Select at least 2 documents to unlock comparison in the builder."}
+                          {comparisonHelperText}
                         </div>
                       </div>
                       <ToggleSwitch
                         checked={shouldIncludeComparisonAppendix}
                         onChange={() => setIncludeComparisonAppendix((prev) => !prev)}
-                        disabled={!canCompare}
+                        disabled={!canCompareInCurrentMode}
                       />
                     </div>
-                    {canCompare ? (
+                    {canCompareInCurrentMode ? (
                       <div className={styles.compareConfigFooter}>
                         <span
                           className={`${styles.compareConfigBadge} ${
@@ -1600,7 +535,7 @@ export default function ReportPage() {
                       </div>
                     ) : (
                       <div className={styles.compareConfigEmpty}>
-                        Comparison becomes available once two documents are included.
+                        {comparisonEmptyText}
                       </div>
                     )}
                   </div>
@@ -1614,7 +549,6 @@ export default function ReportPage() {
                   <p className={styles.configHint}>
                     Use the Remove button on the preview to exclude documents from this one-time export.
                   </p>
-                  {/* Re-add removed documents */}
                   {availableToAdd.length > 0 && (
                     <>
                       <div className={styles.caseListHeader}>Removed — click to re-add</div>
@@ -1641,7 +575,6 @@ export default function ReportPage() {
 
             {/* Right: Live preview */}
             <div className={styles.configRight}>
-              {/* View mode tabs */}
               <div className={styles.viewTabBar}>
                 <button
                   className={`${styles.viewTab} ${activeViewTab === "report" ? styles.viewTabActive : ""}`}
@@ -1652,8 +585,8 @@ export default function ReportPage() {
                 <button
                   className={`${styles.viewTab} ${activeViewTab === "compare" ? styles.viewTabActive : ""}`}
                   onClick={openCompareView}
-                  disabled={!canCompare}
-                  title={!canCompare ? "Select at least 2 documents to compare" : undefined}
+                  disabled={!canCompareInCurrentMode}
+                  title={compareTabTitle}
                 >
                   Compare Documents
                 </button>
@@ -1661,7 +594,7 @@ export default function ReportPage() {
 
               {activeViewTab === "report" ? (
                 <div className={styles.previewCanvas}>
-                  {canCompare && (
+                  {canCompareInCurrentMode && (
                     <div
                       className={`${styles.comparePreviewNotice} ${
                         shouldIncludeComparisonAppendix ? styles.comparePreviewNoticeActive : ""
@@ -1675,7 +608,7 @@ export default function ReportPage() {
                         </div>
                         <div className={styles.comparePreviewNoticeText}>
                           {shouldIncludeComparisonAppendix
-                            ? "The exported report will end with a side-by-side comparison of the selected documents."
+                            ? "The exported report will end with a side-by-side comparison of the included documents."
                             : "Turn it on from the left panel if you want the report to end with a side-by-side comparison section."}
                         </div>
                       </div>
@@ -1691,9 +624,9 @@ export default function ReportPage() {
                     <div className={styles.subscriptionPreviewBanner}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                       <div>
-                        <div className={styles.subscriptionBannerTitle}>Subscription Preview</div>
+                        <div className={styles.subscriptionBannerTitle}>{searchPreviewTitle}</div>
                         <div className={styles.subscriptionBannerDesc}>
-                          Showing a sample of current results. Each report cycle will auto-select up to {MAX_REPORT_DOCS} most recent matching documents.
+                          {searchPreviewDescription}
                         </div>
                       </div>
                     </div>
@@ -1718,7 +651,7 @@ export default function ReportPage() {
                     subtitle={reportSubtitle}
                     logoUrl={logoUrl}
                     sections={sections}
-                    metaFields={selectedMetaFields}
+                    metaFields={activeSelectedMetaFields}
                     cases={includedCases}
                     onRemove={isSelectionSource ? removeCase : null}
                     includeComparisonAppendix={shouldIncludeComparisonAppendix}
@@ -1731,7 +664,7 @@ export default function ReportPage() {
                 <div className={styles.previewCanvas}>
                   <ComparisonMatrix
                     cases={includedCases}
-                    metaFields={selectedMetaFields}
+                    metaFields={activeSelectedMetaFields}
                     sections={sections}
                     docTypeLabel={docTypeLabel}
                     includeInExport={shouldIncludeComparisonAppendix}
@@ -1746,7 +679,6 @@ export default function ReportPage() {
           /* ── Step 2: Save & Export ── */
           <div className={styles.deliveryLayout}>
             <div className={styles.deliveryPanel}>
-              {/* Report type choice — tailored per mode */}
               <div className={styles.deliveryCard}>
                 <div className={styles.deliveryCardTitle}>
                   {isSelectionSource ? "Export Report" : "Delivery Schedule"}
@@ -1758,7 +690,7 @@ export default function ReportPage() {
                 </p>
                 {shouldIncludeComparisonAppendix && (
                   <div className={styles.deliveryConstraint}>
-                    This export will include a comparison appendix after the selected documents.
+                    This export will include a comparison appendix after the included documents.
                   </div>
                 )}
                 {canSubscribe ? (
@@ -1795,43 +727,53 @@ export default function ReportPage() {
                 <div className={styles.deliveryCard}>
                   <div className={styles.deliveryCardTitle}>Comparison Appendix</div>
                   <p className={styles.deliveryCardHint}>
-                    Decide whether the exported report should end with a side-by-side comparison of the selected documents.
+                    {isSubscriptionDelivery
+                      ? "Comparison is available only for one-off snapshots."
+                      : "Decide whether the exported report should end with a side-by-side comparison of the included documents."}
                   </p>
-                  <div className={styles.compareConfigCard}>
+                  <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
                     <div className={styles.compareConfigTop}>
                       <div>
                         <div className={styles.compareConfigTitle}>Add comparison to export</div>
                         <div className={styles.compareConfigText}>
-                          This uses the metadata fields and narrative sections currently enabled in the builder.
+                          {isSubscriptionDelivery
+                            ? "Switch delivery mode to One-off Snapshot if you want to include a comparison appendix for the current documents."
+                            : "This uses the metadata fields and narrative sections currently enabled in the builder."}
                         </div>
                       </div>
                       <ToggleSwitch
                         checked={shouldIncludeComparisonAppendix}
                         onChange={() => setIncludeComparisonAppendix((prev) => !prev)}
+                        disabled={!canCompareInCurrentMode}
                       />
                     </div>
-                    <div className={styles.compareConfigFooter}>
-                      <span
-                        className={`${styles.compareConfigBadge} ${
-                          shouldIncludeComparisonAppendix
-                            ? styles.compareConfigBadgeActive
-                            : styles.compareConfigBadgeInactive
-                        }`}
-                      >
-                        {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
-                      </span>
-                      <button
-                        className={styles.comparePreviewBtn}
-                        onClick={openCompareFromExport}
-                      >
-                        Review compare view
-                      </button>
-                    </div>
+                    {canCompareInCurrentMode ? (
+                      <div className={styles.compareConfigFooter}>
+                        <span
+                          className={`${styles.compareConfigBadge} ${
+                            shouldIncludeComparisonAppendix
+                              ? styles.compareConfigBadgeActive
+                              : styles.compareConfigBadgeInactive
+                          }`}
+                        >
+                          {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
+                        </span>
+                        <button
+                          className={styles.comparePreviewBtn}
+                          onClick={openCompareFromExport}
+                        >
+                          Review compare view
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.compareConfigEmpty}>
+                        Comparison is disabled for recurring subscriptions.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Subscription: frequency */}
               {canSubscribe && deliveryMode === "subscription" && (
                 <div className={styles.deliveryCard}>
                   <div className={styles.deliveryCardTitle}>Update Frequency</div>
@@ -1849,7 +791,6 @@ export default function ReportPage() {
                 </div>
               )}
 
-              {/* Subscription: auto-selection note */}
               {canSubscribe && deliveryMode === "subscription" && (
                 <div className={styles.deliveryCard}>
                   <div className={styles.autoSelectNote}>
@@ -1862,7 +803,6 @@ export default function ReportPage() {
                 </div>
               )}
 
-              {/* Delivery method */}
               <div className={styles.deliveryCard}>
                 <div className={styles.deliveryCardTitle}>Delivery Method</div>
                 <p className={styles.deliveryCardHint}>Choose how you receive the report.</p>
@@ -1900,7 +840,6 @@ export default function ReportPage() {
                 )}
               </div>
 
-              {/* Action buttons */}
               <div className={styles.deliveryActions}>
                 {deliveryMode === "one-off" && (
                   <div className={styles.exportList}>
@@ -1937,7 +876,7 @@ export default function ReportPage() {
                 subtitle={reportSubtitle}
                 logoUrl={logoUrl}
                 sections={sections}
-                metaFields={selectedMetaFields}
+                metaFields={activeSelectedMetaFields}
                 cases={includedCases}
                 includeComparisonAppendix={shouldIncludeComparisonAppendix}
                 docTypeLabel={docTypeLabel}

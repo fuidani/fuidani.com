@@ -112,7 +112,6 @@ export default function RefinePage() {
   };
 
   const allQuestions = [...PRIMARY_QUESTIONS, ...EXTRA_QUESTIONS];
-  const filterCount = allQuestions.filter((q) => isCardAnswered(q)).length;
 
   const timePeriodHasCustom = (selections['timePeriod'] || []).includes('Custom range');
   const timePeriodAnswered =
@@ -173,13 +172,15 @@ export default function RefinePage() {
               {question.chips.map((chip) => {
                 const selected = (selections[question.id] || []).includes(chip);
                 return (
-                  <span
+                  <button
+                    type="button"
                     key={chip}
                     className={selected ? styles.optionChipSelected : styles.optionChip}
+                    aria-pressed={selected}
                     onClick={() => toggleChip(question.id, chip)}
                   >
                     {chip}
-                  </span>
+                  </button>
                 );
               })}
             </div>

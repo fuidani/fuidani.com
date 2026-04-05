@@ -77,3 +77,27 @@
   align-items: center;
   justify-content: center;
 }
+
+@media (max-width: 740px) {
+  .topTabs {
+    display: none;
+  }
+
+  .userEmail {
+    display: none;
+  }
+
+  .logoText {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .topBar {
+    padding: 0 10px;
+  }
+
+  .topBarLeft {
+    gap: 8px;
+  }
+}

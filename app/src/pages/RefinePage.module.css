@@ -261,7 +261,10 @@
   display: inline-block;
   padding: 7px 14px;
   font-size: 0.82rem;
+  font-family: inherit;
+  line-height: 1.2;
   color: #475569;
+  appearance: none;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 9px;
@@ -274,6 +277,11 @@
   background: #fefce8;
   border-color: #ca8a04;
   color: #1e293b;
+}
+
+.optionChip:focus-visible {
+  outline: 2px solid #ca8a04;
+  outline-offset: 2px;
 }
 
 .optionChipSelected {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import styles from "./SearchPage.module.css";
@@ -17,14 +17,7 @@ const SUGGESTIONS = [
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    const q = searchParams.get("q");
-    if (q) {
-      setQuery(q);
-    }
-  }, [searchParams]);
+  const [query, setQuery] = useState(() => searchParams.get("q") || "");
 
   const handleSubmit = () => {
     const trimmed = query.trim();
@@ -75,13 +68,14 @@ export default function SearchPage() {
           <div className={styles.suggestionsLabel}>Suggestions</div>
           <div className={styles.suggestions}>
             {SUGGESTIONS.map((text) => (
-              <span
+              <button
+                type="button"
                 key={text}
                 className={styles.chip}
                 onClick={() => handleChipClick(text)}
               >
                 {text}
-              </span>
+              </button>
             ))}
           </div>
         </div>
