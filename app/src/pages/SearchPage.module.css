@@ -2,7 +2,7 @@
   font-family: 'Noto Sans', sans-serif;
   background: #f1f5f9;
   color: #1e293b;
-  min-height: 100vh;
+  min-height: var(--app-height);
   display: flex;
   flex-direction: column;
 }

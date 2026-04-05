@@ -430,7 +430,10 @@ export default function ResultsPage() {
           hasAnySelectedFilters={hasAnySelectedFilters}
         />
 
-        <main className={styles.resultsArea} style={collectionIds.size > 0 ? { paddingBottom: 70 } : undefined}>
+        <main
+          className={styles.resultsArea}
+          style={collectionIds.size > 0 ? { paddingBottom: "calc(86px + var(--app-safe-bottom, 0px))" } : undefined}
+        >
           <SearchRow
             query={query}
             onQueryChange={setQuery}

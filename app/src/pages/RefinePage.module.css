@@ -79,13 +79,13 @@
 /* Page layout */
 .pageWrapper {
   background: #f1f5f9;
-  min-height: 100vh;
+  min-height: var(--app-height);
 }
 
 .page {
   max-width: 760px;
   margin: 0 auto;
-  padding: 32px 24px 120px;
+  padding: 32px 24px calc(120px + var(--app-safe-bottom));
 }
 
 /* Query context */
@@ -403,7 +403,7 @@
   right: 0;
   background: #ffffff;
   border-top: 1px solid #e2e8f0;
-  padding: 14px 24px;
+  padding: 14px 24px calc(14px + var(--app-safe-bottom));
   z-index: 100;
 }
 
