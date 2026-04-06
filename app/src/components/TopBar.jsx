@@ -16,8 +16,10 @@ export default function TopBar({ activeTab, onReportsClick }) {
   return (
     <header className={styles.topBar}>
       <div className={styles.topBarLeft}>
-        <img src={logoIcon} alt="JibuDocs" width="28" height="28" />
-        <span className={styles.logoText}>JibuDocs</span>
+        <a className={styles.logoLink} onClick={() => navigate("/")} role="button" tabIndex={0}>
+          <img src={logoIcon} alt="JibuDocs" width="28" height="28" />
+          <span className={styles.logoText}>JibuDocs</span>
+        </a>
         <nav className={styles.topTabs}>
           <button
             className={`${styles.topTab} ${activeTab === "search" ? styles.topTabActive : ""}`}

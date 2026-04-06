@@ -20,6 +20,14 @@
   gap: 12px;
 }
 
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
 .logoText {
   font-weight: 700;
   font-size: 15px;
