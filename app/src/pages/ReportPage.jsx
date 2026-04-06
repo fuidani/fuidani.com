@@ -113,6 +113,11 @@ export default function ReportPage() {
   const [logoUrl, setLogoUrl] = useState(darkLogo);
   const fileInputRef = useRef(null);
 
+  // Accordion state — which config section is expanded (null = all collapsed)
+  const [openAccordion, setOpenAccordion] = useState("details");
+  const toggleAccordion = (key) =>
+    setOpenAccordion((prev) => (prev === key ? null : key));
+
   // Document curation (one-off only)
   const MAX_REPORT_DOCS = 10;
   const [includedCaseIds, setIncludedCaseIds] = useState(() =>
@@ -388,187 +393,212 @@ export default function ReportPage() {
 
                 {/* Report Details */}
                 <div className={`${styles.configSection} ${styles.reportDetailsSection}`}>
-                  <div className={styles.configSectionTitle}>
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("details")}>
                     <span className={styles.csNum}>A</span> Report Details
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Report Title</label>
-                    <input type="text" value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Subtitle / Edition</label>
-                    <input type="text" value={reportSubtitle} onChange={(e) => setReportSubtitle(e.target.value)} />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Report Logo</label>
-                    <div className={styles.logoControl}>
-                      <div className={styles.logoPreview}>
-                        {logoUrl ? (
-                          <img src={logoUrl} alt="Logo" className={styles.logoPreviewImg} />
-                        ) : (
-                          <span className={styles.logoPlaceholder}>No logo</span>
-                        )}
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "details" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div className={`${styles.accordionBody} ${openAccordion === "details" ? styles.accordionBodyOpen : ""}`}>
+                    <div className={styles.accordionInner}>
+                      <div className={styles.formGroup}>
+                        <label>Report Title</label>
+                        <input type="text" value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} />
                       </div>
-                      <div className={styles.logoActions}>
-                        <button className={styles.logoUploadBtn} onClick={() => fileInputRef.current?.click()}>
-                          Upload custom logo
-                        </button>
-                        {logoUrl !== darkLogo && logoUrl && (
-                          <button className={styles.logoResetBtn} onClick={handleResetLogo}>
-                            Reset to default
-                          </button>
-                        )}
-                        {logoUrl && (
-                          <button className={styles.logoResetBtn} onClick={handleRemoveLogo}>
-                            Remove logo
-                          </button>
-                        )}
+                      <div className={styles.formGroup}>
+                        <label>Subtitle / Edition</label>
+                        <input type="text" value={reportSubtitle} onChange={(e) => setReportSubtitle(e.target.value)} />
                       </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={handleLogoUpload}
-                      />
+                      <div className={styles.formGroup}>
+                        <label>Report Logo</label>
+                        <div className={styles.logoControl}>
+                          <div className={styles.logoPreview}>
+                            {logoUrl ? (
+                              <img src={logoUrl} alt="Logo" className={styles.logoPreviewImg} />
+                            ) : (
+                              <span className={styles.logoPlaceholder}>No logo</span>
+                            )}
+                          </div>
+                          <div className={styles.logoActions}>
+                            <button className={styles.logoUploadBtn} onClick={() => fileInputRef.current?.click()}>
+                              Upload custom logo
+                            </button>
+                            {logoUrl !== darkLogo && logoUrl && (
+                              <button className={styles.logoResetBtn} onClick={handleResetLogo}>
+                                Reset to default
+                              </button>
+                            )}
+                            {logoUrl && (
+                              <button className={styles.logoResetBtn} onClick={handleRemoveLogo}>
+                                Remove logo
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={handleLogoUpload}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Report Sections */}
                 <div className={`${styles.configSection} ${styles.reportSectionsSection}`}>
-                  <div className={styles.configSectionTitle}>
-                    <span className={styles.csNum}>D</span> Report Sections
-                  </div>
-                  <p className={styles.configHint}>Toggle sections ON/OFF. Use arrows to reorder.</p>
-                  <div className={styles.sectionList}>
-                    {sections.map((sec, idx) => (
-                      <div key={sec.id} className={styles.sectionToggleItem}>
-                        <span className={styles.dragHandle}>☰</span>
-                        <span className={styles.toggleLabel}>{sec.label}</span>
-                        <ToggleSwitch
-                          checked={sec.enabled}
-                          onChange={() => toggleSection(sec.id)}
-                        />
-                        <div className={styles.sectionMoveButtons}>
-                          <button onClick={() => moveSection(idx, -1)} disabled={idx === 0}>▲</button>
-                          <button onClick={() => moveSection(idx, 1)} disabled={idx === sections.length - 1}>▼</button>
-                        </div>
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("sections")}>
+                    <span className={styles.csNum}>C</span> Report Sections
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "sections" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div className={`${styles.accordionBody} ${openAccordion === "sections" ? styles.accordionBodyOpen : ""}`}>
+                    <div className={styles.accordionInner}>
+                      <p className={styles.configHint}>Toggle sections ON/OFF. Use arrows to reorder.</p>
+                      <div className={styles.sectionList}>
+                        {sections.map((sec, idx) => (
+                          <div key={sec.id} className={styles.sectionToggleItem}>
+                            <span className={styles.dragHandle}>☰</span>
+                            <span className={styles.toggleLabel}>{sec.label}</span>
+                            <ToggleSwitch
+                              checked={sec.enabled}
+                              onChange={() => toggleSection(sec.id)}
+                            />
+                            <div className={styles.sectionMoveButtons}>
+                              <button onClick={() => moveSection(idx, -1)} disabled={idx === 0}>▲</button>
+                              <button onClick={() => moveSection(idx, 1)} disabled={idx === sections.length - 1}>▼</button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Metadata Fields */}
                 <div className={`${styles.configSection} ${styles.metadataFieldsSection}`}>
-                  <div className={styles.configSectionTitle}>
-                    <span className={styles.csNum}>C</span> Metadata Fields
-                  </div>
-                  <p className={styles.configHint}>Choose which fields appear on each case.</p>
-                  {visibleFieldCategories.length > 0 ? (
-                    visibleFieldCategories.map(([cat, fields]) => (
-                      <div key={cat}>
-                        <div className={styles.fieldCategory}>{cat}</div>
-                        <div className={styles.fieldPillList}>
-                          {fields.map((f) => {
-                            const selected = activeSelectedMetaFields.includes(f);
-                            return (
-                              <button
-                                type="button"
-                                key={f}
-                                className={`${styles.fieldPill} ${selected ? styles.fieldPillSelected : ""}`}
-                                aria-pressed={selected}
-                                onClick={() => toggleMetaField(f)}
-                              >
-                                {f}
-                              </button>
-                            );
-                          })}
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("metadata")}>
+                    <span className={styles.csNum}>B</span> Metadata Fields
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "metadata" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div className={`${styles.accordionBody} ${openAccordion === "metadata" ? styles.accordionBodyOpen : ""}`}>
+                    <div className={styles.accordionInner}>
+                      <p className={styles.configHint}>Choose which fields appear on each case.</p>
+                      {visibleFieldCategories.length > 0 ? (
+                        visibleFieldCategories.map(([cat, fields]) => (
+                          <div key={cat}>
+                            <div className={styles.fieldCategory}>{cat}</div>
+                            <div className={styles.fieldPillList}>
+                              {fields.map((f) => {
+                                const selected = activeSelectedMetaFields.includes(f);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={f}
+                                    className={`${styles.fieldPill} ${selected ? styles.fieldPillSelected : ""}`}
+                                    aria-pressed={selected}
+                                    onClick={() => toggleMetaField(f)}
+                                  >
+                                    {f}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className={styles.fieldEmptyState}>
+                          No metadata fields are available for the currently selected documents.
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={styles.fieldEmptyState}>
-                      No metadata fields are available for the currently selected documents.
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 <div className={`${styles.configSection} ${styles.comparisonAppendixSection}`}>
-                  <div className={styles.configSectionTitle}>
-                    <span className={styles.csNum}>B</span> Compare Documents
-                  </div>
-                  <p className={styles.configHint}>
-                    Add a side-by-side comparison to the end of the exported report when 2 or more documents are included.
-                  </p>
-                  <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
-                    <div className={styles.compareConfigTop}>
-                      <div>
-                        <div className={styles.compareConfigTitle}>Add comparison to export</div>
-                        <div className={styles.compareConfigText}>
-                          {comparisonHelperText}
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("compare")}>
+                    <span className={styles.csNum}>D</span> Compare Documents
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "compare" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div className={`${styles.accordionBody} ${openAccordion === "compare" ? styles.accordionBodyOpen : ""}`}>
+                    <div className={styles.accordionInner}>
+                      <p className={styles.configHint}>
+                        Add a side-by-side comparison to the end of the exported report when 2 or more documents are included.
+                      </p>
+                      <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
+                        <div className={styles.compareConfigTop}>
+                          <div>
+                            <div className={styles.compareConfigTitle}>Add comparison to export</div>
+                            <div className={styles.compareConfigText}>
+                              {comparisonHelperText}
+                            </div>
+                          </div>
+                          <ToggleSwitch
+                            checked={shouldIncludeComparisonAppendix}
+                            onChange={() => setIncludeComparisonAppendix((prev) => !prev)}
+                            disabled={!canCompareInCurrentMode}
+                          />
                         </div>
+                        {canCompareInCurrentMode ? (
+                          <div className={styles.compareConfigFooter}>
+                            <span
+                              className={`${styles.compareConfigBadge} ${
+                                shouldIncludeComparisonAppendix
+                                  ? styles.compareConfigBadgeActive
+                                  : styles.compareConfigBadgeInactive
+                              }`}
+                            >
+                              {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
+                            </span>
+                            <button
+                              className={styles.comparePreviewBtn}
+                              onClick={openCompareView}
+                            >
+                              Open compare preview
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={styles.compareConfigEmpty}>
+                            {comparisonEmptyText}
+                          </div>
+                        )}
                       </div>
-                      <ToggleSwitch
-                        checked={shouldIncludeComparisonAppendix}
-                        onChange={() => setIncludeComparisonAppendix((prev) => !prev)}
-                        disabled={!canCompareInCurrentMode}
-                      />
                     </div>
-                    {canCompareInCurrentMode ? (
-                      <div className={styles.compareConfigFooter}>
-                        <span
-                          className={`${styles.compareConfigBadge} ${
-                            shouldIncludeComparisonAppendix
-                              ? styles.compareConfigBadgeActive
-                              : styles.compareConfigBadgeInactive
-                          }`}
-                        >
-                          {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
-                        </span>
-                        <button
-                          className={styles.comparePreviewBtn}
-                          onClick={openCompareView}
-                        >
-                          Open compare preview
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={styles.compareConfigEmpty}>
-                        {comparisonEmptyText}
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 {/* Documents */}
                 {isSelectionSource && <div className={`${styles.configSection} ${styles.selectedDocumentsSection}`}>
-                  <div className={styles.configSectionTitle}>
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("documents")}>
                     <span className={styles.csNum}>E</span> Selected Documents ({includedCases.length}/{MAX_REPORT_DOCS})
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "documents" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div className={`${styles.accordionBody} ${openAccordion === "documents" ? styles.accordionBodyOpen : ""}`}>
+                    <div className={styles.accordionInner}>
+                      <p className={styles.configHint}>
+                        Use the Remove button on the preview to exclude documents from this one-time export.
+                      </p>
+                      {availableToAdd.length > 0 && (
+                        <>
+                          <div className={styles.caseListHeader}>Removed — click to re-add</div>
+                          <div className={styles.caseCheckList}>
+                            {availableToAdd.map((c) => {
+                              const label = c.parties
+                                ? `${c.caseRef || ""}: ${c.parties}`
+                                : c.companyName || c.documentTitle || "Untitled";
+                              return (
+                                <div key={c.id} className={`${styles.caseCheckItem} ${styles.caseCheckItemAvailable}`}>
+                                  <span className={styles.caseCheckLabel}>{label}</span>
+                                  <button className={styles.caseAddBtn} onClick={() => addCase(c.id)} title="Add back to report">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className={styles.configHint}>
-                    Use the Remove button on the preview to exclude documents from this one-time export.
-                  </p>
-                  {availableToAdd.length > 0 && (
-                    <>
-                      <div className={styles.caseListHeader}>Removed — click to re-add</div>
-                      <div className={styles.caseCheckList}>
-                        {availableToAdd.map((c) => {
-                          const label = c.parties
-                            ? `${c.caseRef || ""}: ${c.parties}`
-                            : c.companyName || c.documentTitle || "Untitled";
-                          return (
-                            <div key={c.id} className={`${styles.caseCheckItem} ${styles.caseCheckItemAvailable}`}>
-                              <span className={styles.caseCheckLabel}>{label}</span>
-                              <button className={styles.caseAddBtn} onClick={() => addCase(c.id)} title="Add back to report">
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
                 </div>}
               </div>
             </div>

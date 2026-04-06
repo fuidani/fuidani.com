@@ -11,26 +11,6 @@ const DEFAULT_FIELDS_BY_TYPE = {
   contract: LIST_FIELDS_CONTRACT,
 };
 
-const SUMMARY_FIELDS_BY_TYPE = {
-  "case-law": [
-    { key: "issues", label: "Issues" },
-    { key: "findings", label: "Findings" },
-    { key: "background", label: "Background" },
-    { key: "decision", label: "Decision" },
-  ],
-  contract: [
-    { key: "Legal Area", label: "Legal Area" },
-    { key: "scopeOfWork", label: "Scope of Work" },
-    { key: "background", label: "Background" },
-    { key: "Parties", label: "Parties" },
-  ],
-  "financial-statement": [
-    { key: "companyIdentifiers", label: "Company Identifiers" },
-    { key: "reportingStandards", label: "Reporting Standards" },
-    { key: "Industry", label: "Industry" },
-  ],
-};
-
 function getDocTypeKey(data) {
   return data.documentType || "case-law";
 }
@@ -69,18 +49,6 @@ function getSublineText(data, docType) {
   return data.companyName || data["Industry"] || "JibuDocs File Manager";
 }
 
-function getSummary(data, docType, metaFields) {
-  const candidates = SUMMARY_FIELDS_BY_TYPE[docType] || SUMMARY_FIELDS_BY_TYPE["case-law"];
-  const match = candidates.find((candidate) => data[candidate.key] && !metaFields.includes(candidate.key));
-
-  if (!match) return null;
-
-  return {
-    label: match.label,
-    value: String(data[match.key]),
-  };
-}
-
 function getValueStyle(field, value) {
   if (field === "Disposition") {
     if (value === "Dismissed") return { color: "#b91c1c", fontWeight: 600 };
@@ -106,13 +74,13 @@ export default function ResultListRow({
   collectionFull,
   customFields,
   onEditCard,
+  showEditButton = true,
 }) {
   const docType = getDocTypeKey(data);
   const hasCustomFields = customFields !== undefined;
   const visibleFields = getVisibleFields(docType, customFields);
   const defaultFields = getVisibleFields(docType, null);
   const metaFields = (hasCustomFields ? visibleFields : defaultFields).filter((field) => data[field]);
-  const summary = getSummary(data, docType, metaFields);
   const titleText = getTitleText(data, docType);
   const typeLabel = getTypeLabel(docType);
   const sublineText = getSublineText(data, docType);
@@ -162,17 +130,19 @@ export default function ResultListRow({
             Open
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </button>
-          <button
-            type="button"
-            className={styles.editCardBtn}
-            onClick={(event) => {
-              event.stopPropagation();
-              onEditCard(id);
-            }}
-          >
-            Edit Card
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+          {showEditButton && (
+            <button
+              type="button"
+              className={styles.editCardBtn}
+              onClick={(event) => {
+                event.stopPropagation();
+                onEditCard?.(id);
+              }}
+            >
+              Edit Card
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -186,13 +156,6 @@ export default function ResultListRow({
               </span>
             </div>
           ))}
-        </div>
-      )}
-
-      {summary && (
-        <div className={styles.resultListSummary}>
-          <span className={styles.resultListSummaryLabel}>{summary.label}</span>
-          <p className={styles.resultListSummaryText}>{summary.value}</p>
         </div>
       )}
     </div>

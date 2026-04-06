@@ -23,7 +23,8 @@ import {
 import SearchRow from "./results/SearchRow";
 import FilterSidebar from "./results/FilterSidebar";
 import ResultCard from "./results/ResultCard";
-import ResultListRow from "./results/ResultListRow";
+import ResultCompactRow from "./results/ResultListRow";
+import ResultTableRow from "./results/ResultTableRow";
 import PreviewPanel from "./results/PreviewPanel";
 import MixedTypeModal from "./results/MixedTypeModal";
 import EditCardModal from "./results/EditCardModal";
@@ -38,6 +39,28 @@ const PREVIEW_DEFAULT_WIDTH = 360;
 const PREVIEW_MAX_WIDTH = 760;
 const PREVIEW_RESIZER_WIDTH = 12;
 const PREVIEW_WIDTH_STORAGE_KEY = "jibudocs-results-preview-width";
+const LIST_FALLBACK_WIDTH = 640;
+const SORT_OPTIONS = [
+  { value: "relevance", label: "Relevance" },
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "title", label: "Title A-Z" },
+  { value: "type", label: "Document type" },
+];
+const MONTH_INDEX_BY_NAME = {
+  january: 0,
+  february: 1,
+  march: 2,
+  april: 3,
+  may: 4,
+  june: 5,
+  july: 6,
+  august: 7,
+  september: 8,
+  october: 9,
+  november: 10,
+  december: 11,
+};
 
 function getInitialPreviewWidth() {
   if (typeof window === "undefined") return PREVIEW_DEFAULT_WIDTH;
@@ -56,14 +79,181 @@ function normalizeFilterState(filters) {
     }, {});
 }
 
+function getDocTypeKey(data) {
+  return data.documentType || "case-law";
+}
+
+function getResultTypeLabel(data) {
+  const docType = getDocTypeKey(data);
+  if (docType === "contract") return "Contract";
+  if (docType === "financial-statement") return "Financial Statement";
+  return "Case Law";
+}
+
+function getResultTitle(data) {
+  const docType = getDocTypeKey(data);
+  if (docType === "case-law") {
+    const caseRef = data.caseRef || "Untitled";
+    const parties = data.parties ? data.parties.split(" VS ").join(" vs ") : "";
+    return parties ? `${caseRef}: ${parties}` : caseRef;
+  }
+
+  return data.documentTitle || data.companyName || "Untitled document";
+}
+
+function getSortDateText(data) {
+  const docType = getDocTypeKey(data);
+  if (docType === "case-law") return data["Decision Date"] || "";
+  if (docType === "contract") {
+    return data["Contract Date"] || data["Signing Date"] || data["Expiration Date"] || "";
+  }
+  return data["Reporting Period End Date"] || "";
+}
+
+function parseSortDate(value) {
+  if (!value) return null;
+
+  const normalizedValue = String(value).trim();
+  if (!normalizedValue || normalizedValue === "N/A") {
+    return null;
+  }
+
+  const structuredMatch = normalizedValue.match(/^(\d{4})\s+([A-Za-z]+)(?:\s+(\d{1,2}))?$/);
+  if (structuredMatch) {
+    const [, yearText, monthText, dayText] = structuredMatch;
+    const monthIndex = MONTH_INDEX_BY_NAME[monthText.toLowerCase()];
+    if (monthIndex !== undefined) {
+      return new Date(Number(yearText), monthIndex, Number(dayText || 1)).getTime();
+    }
+  }
+
+  const fallbackTimestamp = Date.parse(normalizedValue);
+  return Number.isNaN(fallbackTimestamp) ? null : fallbackTimestamp;
+}
+
+function getSortDateValue(data) {
+  return parseSortDate(getSortDateText(data));
+}
+
+function getRelevanceScore(data, query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return 0;
+
+  const terms = [...new Set(normalizedQuery.split(/\s+/).filter(Boolean))];
+  const titleText = getResultTitle(data).toLowerCase();
+  const typeText = getResultTypeLabel(data).toLowerCase();
+  const searchText = [
+    titleText,
+    typeText,
+    getSortDateText(data),
+    data.parties,
+    data.caseRef,
+    data.documentTitle,
+    data.companyName,
+    data["Court"],
+    data["Tax Type"],
+    data["Tax Issue Category"],
+    data["Disposition"],
+    data["Prevailing Party"],
+    data["Governing Law"],
+    data["Contract Type"],
+    data["Statement Type"],
+    data["Industry"],
+    data.background,
+    data.findings,
+    data.decision,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  let score = 0;
+
+  if (titleText.includes(normalizedQuery)) score += 80;
+  if (typeText.includes(normalizedQuery)) score += 20;
+  if (searchText.includes(normalizedQuery)) score += 35;
+
+  terms.forEach((term) => {
+    if (titleText.includes(term)) score += 18;
+    if (typeText.includes(term)) score += 6;
+    if (searchText.includes(term)) score += 8;
+  });
+
+  return score;
+}
+
+function compareNullableDates(aValue, bValue, direction) {
+  const aMissing = aValue == null;
+  const bMissing = bValue == null;
+
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+  return direction === "asc" ? aValue - bValue : bValue - aValue;
+}
+
+function sortCases(entries, sortBy, query) {
+  return entries
+    .map(([id, data], originalIndex) => ({ id, data, originalIndex }))
+    .sort((a, b) => {
+      const titleDiff = getResultTitle(a.data).localeCompare(getResultTitle(b.data), undefined, {
+        sensitivity: "base",
+        numeric: true,
+      });
+
+      if (sortBy === "newest") {
+        const dateDiff = compareNullableDates(getSortDateValue(a.data), getSortDateValue(b.data), "desc");
+        if (dateDiff !== 0) return dateDiff;
+        if (titleDiff !== 0) return titleDiff;
+        return a.originalIndex - b.originalIndex;
+      }
+
+      if (sortBy === "oldest") {
+        const dateDiff = compareNullableDates(getSortDateValue(a.data), getSortDateValue(b.data), "asc");
+        if (dateDiff !== 0) return dateDiff;
+        if (titleDiff !== 0) return titleDiff;
+        return a.originalIndex - b.originalIndex;
+      }
+
+      if (sortBy === "title") {
+        if (titleDiff !== 0) return titleDiff;
+        return a.originalIndex - b.originalIndex;
+      }
+
+      if (sortBy === "type") {
+        const typeDiff = getResultTypeLabel(a.data).localeCompare(getResultTypeLabel(b.data), undefined, {
+          sensitivity: "base",
+        });
+        if (typeDiff !== 0) return typeDiff;
+        if (titleDiff !== 0) return titleDiff;
+        return a.originalIndex - b.originalIndex;
+      }
+
+      if (query.trim()) {
+        const relevanceDiff = getRelevanceScore(b.data, query) - getRelevanceScore(a.data, query);
+        if (relevanceDiff !== 0) return relevanceDiff;
+
+        const dateDiff = compareNullableDates(getSortDateValue(a.data), getSortDateValue(b.data), "desc");
+        if (dateDiff !== 0) return dateDiff;
+      }
+
+      return a.originalIndex - b.originalIndex;
+    })
+    .map(({ id, data }) => [id, data]);
+}
+
 /* ─── Main Page Component ────────────────────────────────── */
 
 export default function ResultsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const searchParamQuery = searchParams.get("q") || "";
+  const [query, setQuery] = useState(searchParamQuery);
   const mainLayoutRef = useRef(null);
   const resizeStateRef = useRef({ active: false, containerRight: 0 });
+
+  // Sidebar visibility
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Filter collapse state
   const [collapsedSections, setCollapsedSections] = useState(() => {
@@ -106,10 +296,15 @@ export default function ResultsPage() {
   const [editCardId, setEditCardId] = useState(null);
   const [editMode, setEditMode] = useState("cards");
   const [customFieldsMap, setCustomFieldsMap] = useState({});
-  const [listFieldsMap, setListFieldsMap] = useState({});
+  const [compactFieldsMap, setCompactFieldsMap] = useState({});
+  const [sortBy, setSortBy] = useState("relevance");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState("list");
   const [previewWidth, setPreviewWidth] = useState(getInitialPreviewWidth);
   const [isPreviewResizing, setIsPreviewResizing] = useState(false);
+  const [isListFallbackActive, setIsListFallbackActive] = useState(false);
+  const resultsAreaRef = useRef(null);
+  const sortControlRef = useRef(null);
 
   const casesArray = useMemo(() => Object.entries(SAMPLE_CASES), []);
   const filterSections = useMemo(() => buildFilterSections(SAMPLE_CASES), []);
@@ -117,6 +312,10 @@ export default function ResultsPage() {
   const filteredCasesArray = useMemo(
     () => casesArray.filter(([, data]) => matchesSelectedFilters(data, appliedFilters)),
     [appliedFilters, casesArray]
+  );
+  const sortedCasesArray = useMemo(
+    () => sortCases(filteredCasesArray, sortBy, query),
+    [filteredCasesArray, query, sortBy]
   );
   const draftFiltersSignature = useMemo(
     () => JSON.stringify(normalizeFilterState(draftFilters)),
@@ -129,10 +328,19 @@ export default function ResultsPage() {
   const hasPendingFilterChanges = draftFiltersSignature !== appliedFiltersSignature;
   const hasAnySelectedFilters = draftFiltersSignature !== "{}" || appliedFiltersSignature !== "{}";
   const resultCount = filteredCasesArray.length;
-  const previewData = useMemo(
-    () => filteredCasesArray.find(([id]) => id === selectedPreviewId)?.[1] ?? null,
-    [filteredCasesArray, selectedPreviewId]
+  const appliedFilterCount = useMemo(
+    () => Object.values(appliedFilters).reduce((count, values) => count + values.length, 0),
+    [appliedFilters]
   );
+  const previewData = useMemo(
+    () => sortedCasesArray.find(([id]) => id === selectedPreviewId)?.[1] ?? null,
+    [selectedPreviewId, sortedCasesArray]
+  );
+  const activeSortOption = useMemo(
+    () => SORT_OPTIONS.find((option) => option.value === sortBy) ?? SORT_OPTIONS[0],
+    [sortBy]
+  );
+  const effectiveViewMode = viewMode === "list" && isListFallbackActive ? "compact" : viewMode;
 
   const toggleCollapse = useCallback((key) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -263,8 +471,8 @@ export default function ResultsPage() {
   }, []);
 
   const handleApplyCustomFields = useCallback((newFields) => {
-    if (editMode === "list") {
-      setListFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
+    if (editMode === "compact") {
+      setCompactFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
     } else {
       setCustomFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
     }
@@ -272,7 +480,7 @@ export default function ResultsPage() {
   }, [editCardId, editMode]);
 
   const getFieldsForDocType = useCallback((docType, mode = "cards") => {
-    if (mode === "list") {
+    if (mode === "compact") {
       if (docType === "financial-statement") return { defaults: LIST_FIELDS_FINANCIAL, all: ALL_LIST_FIELDS_FINANCIAL };
       if (docType === "contract") return { defaults: LIST_FIELDS_CONTRACT, all: ALL_LIST_FIELDS_CONTRACT };
       return { defaults: LIST_FIELDS, all: ALL_LIST_FIELDS };
@@ -284,8 +492,14 @@ export default function ResultsPage() {
   }, []);
 
   const handleSearch = useCallback(() => {
-    // placeholder
-  }, []);
+    const trimmed = query.trim();
+    if (trimmed !== query) setQuery(trimmed);
+    navigate(trimmed ? `/results?q=${encodeURIComponent(trimmed)}` : "/results", { replace: true });
+  }, [navigate, query]);
+
+  useEffect(() => {
+    setQuery(searchParamQuery);
+  }, [searchParamQuery]);
 
   useEffect(() => {
     if (selectedPreviewId === null) return;
@@ -293,16 +507,42 @@ export default function ResultsPage() {
     setSelectedPreviewId(null);
   }, [filteredCasesArray, selectedPreviewId]);
 
+  useEffect(() => {
+    const node = resultsAreaRef.current;
+    if (!node) return undefined;
+
+    const updateFallbackState = () => {
+      setIsListFallbackActive(node.clientWidth < LIST_FALLBACK_WIDTH);
+    };
+
+    updateFallbackState();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateFallbackState);
+      return () => {
+        window.removeEventListener("resize", updateFallbackState);
+      };
+    }
+
+    const observer = new ResizeObserver(updateFallbackState);
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const getPreviewMaxWidth = useCallback(() => {
     const containerWidth = mainLayoutRef.current?.clientWidth
       ?? (typeof window !== "undefined" ? window.innerWidth : PREVIEW_DEFAULT_WIDTH + PREVIEW_MIN_WIDTH);
-    const availableWidth = containerWidth - SIDEBAR_WIDTH - RESULTS_MIN_WIDTH - PREVIEW_RESIZER_WIDTH;
+    const sidebarW = sidebarOpen ? SIDEBAR_WIDTH : 0;
+    const availableWidth = containerWidth - sidebarW - RESULTS_MIN_WIDTH - PREVIEW_RESIZER_WIDTH;
 
     return Math.max(
       PREVIEW_MIN_WIDTH,
       Math.min(PREVIEW_MAX_WIDTH, availableWidth)
     );
-  }, []);
+  }, [sidebarOpen]);
 
   const clampPreviewWidth = useCallback((nextWidth) => {
     const maxWidth = getPreviewMaxWidth();
@@ -351,6 +591,27 @@ export default function ResultsPage() {
   const handlePreviewResizeReset = useCallback(() => {
     setPreviewWidth(clampPreviewWidth(PREVIEW_DEFAULT_WIDTH));
   }, [clampPreviewWidth]);
+
+  useEffect(() => {
+    if (!sortMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (sortControlRef.current?.contains(event.target)) return;
+      setSortMenuOpen(false);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSortMenuOpen(false);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [sortMenuOpen]);
 
   useEffect(() => {
     const handlePointerMove = (event) => {
@@ -413,9 +674,20 @@ export default function ResultsPage() {
   return (
     <div className={styles.page}>
       <TopBar activeTab="search" onReportsClick={handleGoToReports} />
+      <div className={styles.searchStrip}>
+        <div className={styles.searchStripInner}>
+          <SearchRow
+            query={query}
+            onQueryChange={setQuery}
+            onSearch={handleSearch}
+            resultCount={resultCount}
+            appliedFilterCount={appliedFilterCount}
+          />
+        </div>
+      </div>
       <div
         ref={mainLayoutRef}
-        className={`${styles.mainLayout} ${isPreviewResizing ? styles.mainLayoutResizing : ""}`}
+        className={`${styles.mainLayout} ${isPreviewResizing ? styles.mainLayoutResizing : ""} ${!sidebarOpen ? styles.mainLayoutSidebarHidden : ""}`}
         style={{ "--preview-width": `${previewWidth}px` }}
       >
         <FilterSidebar
@@ -428,23 +700,105 @@ export default function ResultsPage() {
           onResetFilters={resetFilters}
           hasPendingChanges={hasPendingFilterChanges}
           hasAnySelectedFilters={hasAnySelectedFilters}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
 
         <main
+          ref={resultsAreaRef}
           className={styles.resultsArea}
           style={collectionIds.size > 0 ? { paddingBottom: "calc(86px + var(--app-safe-bottom, 0px))" } : undefined}
         >
-          <SearchRow
-            query={query}
-            onQueryChange={setQuery}
-            onSearch={handleSearch}
-          />
 
           <div className={styles.resultCountRow}>
-            <div className={styles.resultCount}>
-              {resultCount} Result{resultCount === 1 ? "" : "s"}
+            <div className={styles.resultCountLeft}>
+              {!sidebarOpen && (
+                <button type="button" className={styles.filtersToggleBtn} onClick={() => setSidebarOpen(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                  Filters
+                </button>
+              )}
+              <div className={styles.resultCount}>
+                {resultCount} Result{resultCount === 1 ? "" : "s"}
+              </div>
             </div>
             <div className={styles.resultUtilityGroup}>
+              <div ref={sortControlRef} className={styles.sortControl}>
+                <label className={styles.sortLabel} htmlFor="results-sort">
+                  Sort by
+                </label>
+                <div className={styles.sortSelectWrap}>
+                  <button
+                    id="results-sort"
+                    type="button"
+                    className={styles.sortSelectBtn}
+                    onClick={() => setSortMenuOpen((open) => !open)}
+                    aria-haspopup="menu"
+                    aria-expanded={sortMenuOpen}
+                    aria-controls="results-sort-menu"
+                  >
+                    {activeSortOption.label}
+                  </button>
+                  <svg
+                    className={styles.sortSelectIcon}
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  {sortMenuOpen && (
+                    <div
+                      id="results-sort-menu"
+                      className={styles.sortMenu}
+                      role="menu"
+                      aria-label="Sort results"
+                    >
+                      {SORT_OPTIONS.map((option) => {
+                        const isActive = option.value === sortBy;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`${styles.sortMenuOption} ${isActive ? styles.sortMenuOptionActive : ""}`}
+                            role="menuitemradio"
+                            aria-checked={isActive}
+                            onClick={() => {
+                              setSortBy(option.value);
+                              setSortMenuOpen(false);
+                            }}
+                          >
+                            <span>{option.label}</span>
+                            {isActive && (
+                              <svg
+                                className={styles.sortMenuOptionCheck}
+                                viewBox="0 0 24 24"
+                                width="14"
+                                height="14"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className={styles.viewToggle}>
                 <button
                   type="button"
@@ -452,6 +806,13 @@ export default function ResultsPage() {
                   onClick={() => setViewMode("list")}
                 >
                   List
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${viewMode === "compact" ? styles.viewToggleBtnActive : ""}`}
+                  onClick={() => setViewMode("compact")}
+                >
+                  Compact
                 </button>
                 <button
                   type="button"
@@ -476,13 +837,43 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <div className={viewMode === "list" ? styles.resultList : styles.resultCardStack}>
-            {filteredCasesArray.length === 0 ? (
+          <div
+            className={
+              effectiveViewMode === "cards"
+                ? styles.resultCardStack
+                : effectiveViewMode === "list"
+                  ? styles.resultTable
+                  : styles.resultList
+            }
+          >
+            {sortedCasesArray.length === 0 ? (
               <div className={styles.emptyResults}>No results match the selected filters.</div>
             ) : (
-              filteredCasesArray.map(([id, data]) =>
-                viewMode === "list" ? (
-                  <ResultListRow
+              <>
+                {effectiveViewMode === "list" && (
+                  <div className={styles.resultTableHeader}>
+                    <span className={styles.resultTableHeaderCell}>Pick</span>
+                    <span className={styles.resultTableHeaderCell}>Document</span>
+                    <span className={styles.resultTableHeaderCell}>Type</span>
+                    <span className={styles.resultTableHeaderCell}>Date</span>
+                    <span className={styles.resultTableHeaderCell}>Key Data</span>
+                    <span className={styles.resultTableHeaderCell}>Open</span>
+                  </div>
+                )}
+                {sortedCasesArray.map(([id, data]) =>
+                  effectiveViewMode === "list" ? (
+                    <ResultTableRow
+                      key={id}
+                      id={id}
+                      data={data}
+                      isPreviewActive={selectedPreviewId === id}
+                      onPreviewSelect={setSelectedPreviewId}
+                      onAddToReport={toggleCollectionItem}
+                      addedToReport={collectionIds.has(id)}
+                      collectionFull={collectionIds.size >= MAX_COLLECTION}
+                    />
+                  ) : effectiveViewMode === "compact" ? (
+                  <ResultCompactRow
                     key={id}
                     id={id}
                     data={data}
@@ -491,8 +882,9 @@ export default function ResultsPage() {
                     onAddToReport={toggleCollectionItem}
                     addedToReport={collectionIds.has(id)}
                     collectionFull={collectionIds.size >= MAX_COLLECTION}
-                    customFields={listFieldsMap[id]}
-                    onEditCard={(targetId) => handleEditCard(targetId, "list")}
+                    customFields={viewMode === "compact" ? compactFieldsMap[id] : undefined}
+                    showEditButton={viewMode === "compact"}
+                    onEditCard={(targetId) => handleEditCard(targetId, "compact")}
                   />
                 ) : (
                   <ResultCard
@@ -509,8 +901,9 @@ export default function ResultsPage() {
                     customFields={customFieldsMap[id]}
                     onEditCard={(targetId) => handleEditCard(targetId, "cards")}
                   />
-                )
-              )
+                  )
+                )}
+              </>
             )}
           </div>
         </main>
@@ -546,7 +939,7 @@ export default function ResultsPage() {
         const { defaults, all } = getFieldsForDocType(docType, editMode);
         return (
           <EditCardModal
-            fields={(editMode === "list" ? listFieldsMap[editCardId] : customFieldsMap[editCardId]) || defaults}
+            fields={(editMode === "compact" ? compactFieldsMap[editCardId] : customFieldsMap[editCardId]) || defaults}
             defaultFields={defaults}
             allFields={all}
             onApply={handleApplyCustomFields}

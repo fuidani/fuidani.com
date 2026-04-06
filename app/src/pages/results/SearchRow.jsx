@@ -11,19 +11,28 @@ function SearchIcon() {
 
 export default function SearchRow({ query, onQueryChange, onSearch }) {
   return (
-    <div className={styles.searchRow}>
-      <div className={styles.searchInputWrap}>
-        <span className={styles.searchInputIcon}><SearchIcon /></span>
-        <input
-          className={styles.searchInput}
-          type="text"
-          placeholder="Search documents..."
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSearch()}
-        />
-      </div>
-      <button className={styles.searchBtn} onClick={onSearch}>Search</button>
-    </div>
+    <section className={styles.searchRow}>
+      <form
+        className={styles.searchForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSearch();
+        }}
+      >
+        <div className={styles.searchInputWrap}>
+          <span className={styles.searchInputIcon}><SearchIcon /></span>
+          <input
+            className={styles.searchInput}
+            type="text"
+            aria-label="Search query"
+            placeholder="Search documents..."
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+          />
+        </div>
+        <button type="submit" className={styles.searchBtn}> Search</button>
+      </form>
+
+    </section>
   );
 }
