@@ -1,31 +1,7 @@
-import { DOC_TYPE_LABELS } from "../../data/sampleCases";
-
-export function getDocumentLabel(doc) {
-  return doc.parties
-    ? `${doc.caseRef || ""}: ${doc.parties}`
-    : doc.companyName || doc.documentTitle || "Untitled";
-}
-
-export function getCompareDocumentHeading(doc) {
-  if (doc.parties) {
-    return {
-      eyebrow: doc.caseRef || "Case",
-      title: doc.parties,
-    };
-  }
-
-  if (doc.companyName) {
-    return {
-      eyebrow: doc.companyName,
-      title: doc.documentTitle || "Untitled",
-    };
-  }
-
-  return {
-    eyebrow: doc["Contract Type"] || DOC_TYPE_LABELS[doc.documentType] || "Document",
-    title: doc.documentTitle || doc["Contract Name"] || "Untitled",
-  };
-}
+export {
+  getCompareDocumentHeading,
+  getDocumentLabel,
+} from "../../data/documentUtils";
 
 export function formatCompareValue(value) {
   return value === undefined || value === null || value === "" ? "—" : value;

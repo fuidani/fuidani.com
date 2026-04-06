@@ -2646,6 +2646,7 @@
 
 .caseBlock {
   margin-bottom: 28px;
+  break-inside: avoid;
   page-break-inside: avoid;
 }
 
@@ -3220,6 +3221,11 @@
     height: auto !important;
   }
 
+  .deliveryLayout {
+    display: block !important;
+    padding: 0 !important;
+  }
+
   .configRight, .previewMain {
     overflow: visible !important;
   }
@@ -3240,6 +3246,7 @@
   .docPage {
     box-shadow: none;
     width: 100%;
+    min-height: 0;
     padding: 40px 50px;
   }
 }

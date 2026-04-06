@@ -1,6 +1,8 @@
 .pageWrapper {
   font-family: 'Noto Sans', sans-serif;
-  background: #f1f5f9;
+  background:
+    radial-gradient(circle at center top, rgba(202, 138, 4, 0.10), transparent 50%),
+    linear-gradient(180deg, #fffdf7 0%, #f8fafc 100%);
   color: #1e293b;
   min-height: var(--app-height);
   display: flex;

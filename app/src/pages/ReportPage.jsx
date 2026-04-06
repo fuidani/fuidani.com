@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  SAMPLE_CASES,
   REPORT_SECTIONS,
   FIELD_CATEGORIES,
   REPORT_SECTIONS_BY_TYPE,
@@ -9,6 +8,8 @@ import {
   DEFAULT_META_FIELDS_BY_TYPE,
   DOC_TYPE_LABELS,
 } from "../data/sampleCases";
+import useLocalCaseDatabase from "../hooks/useLocalCaseDatabase";
+import { getDocumentLabel } from "../data/documentUtils";
 import darkLogo from "../assets/Dark_Logo_JibuDocs_Icon.png";
 import styles from "./ReportPage.module.css";
 import ToggleSwitch from "../components/ToggleSwitch";
@@ -38,6 +39,7 @@ const getAvailableMetaFieldSet = (categories, docs) => {
 
 export default function ReportPage() {
   const navigate = useNavigate();
+  const { casesById } = useLocalCaseDatabase();
 
   // Read selected items and document type from sessionStorage
   const selectedItems = useMemo(() => {
@@ -85,12 +87,8 @@ export default function ReportPage() {
 
   const selectedIds = Object.keys(selectedItems);
   const caseEntries = useMemo(
-    () => selectedIds.filter((id) => SAMPLE_CASES[id]).map((id) => ({ id, ...SAMPLE_CASES[id] })),
-    [selectedIds]
-  );
-  const initialAvailableMetaFields = useMemo(
-    () => getAvailableMetaFieldSet(typeFieldCategories, caseEntries),
-    [caseEntries, typeFieldCategories]
+    () => selectedIds.map((id) => casesById[id]).filter(Boolean),
+    [casesById, selectedIds]
   );
 
   // Report config state
@@ -105,11 +103,9 @@ export default function ReportPage() {
     setReportInsights((prev) => prev.filter((i) => i.id !== id));
   };
   const [sections, setSections] = useState(() => typeSections.map((s) => ({ ...s })));
-  const [selectedMetaFields, setSelectedMetaFields] = useState(() =>
-    typeDefaultMetaFields.filter((field) => initialAvailableMetaFields.has(field))
-  );
-  const [reportTitle, setReportTitle] = useState(docType === "case-law" ? "TAT Summaries" : `${docTypeLabel} Report`);
-  const [reportSubtitle, setReportSubtitle] = useState(docType === "case-law" ? "January 2026 Edition" : "");
+  const [selectedMetaFields, setSelectedMetaFields] = useState(() => typeDefaultMetaFields);
+  const [reportTitle, setReportTitle] = useState(docType === "case-law" ? "JibuDocs Case Summaries" : `${docTypeLabel} Report`);
+  const [reportSubtitle, setReportSubtitle] = useState(docType === "case-law" ? "Local CSV demo dataset" : "");
   const [logoUrl, setLogoUrl] = useState(darkLogo);
   const fileInputRef = useRef(null);
 
@@ -121,7 +117,7 @@ export default function ReportPage() {
   // Document curation (one-off only)
   const MAX_REPORT_DOCS = 10;
   const [includedCaseIds, setIncludedCaseIds] = useState(() =>
-    new Set(caseEntries.slice(0, MAX_REPORT_DOCS).map((c) => c.id))
+    new Set(selectedIds.slice(0, MAX_REPORT_DOCS))
   );
   const sourceLabel = isSelectionSource
     ? `${caseEntries.length} hand-picked document${caseEntries.length !== 1 ? "s" : ""}`
@@ -582,9 +578,7 @@ export default function ReportPage() {
                           <div className={styles.caseListHeader}>Removed — click to re-add</div>
                           <div className={styles.caseCheckList}>
                             {availableToAdd.map((c) => {
-                              const label = c.parties
-                                ? `${c.caseRef || ""}: ${c.parties}`
-                                : c.companyName || c.documentTitle || "Untitled";
+                              const label = getDocumentLabel(c);
                               return (
                                 <div key={c.id} className={`${styles.caseCheckItem} ${styles.caseCheckItemAvailable}`}>
                                   <span className={styles.caseCheckLabel}>{label}</span>

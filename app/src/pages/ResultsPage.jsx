@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { SAMPLE_CASES } from "../data/sampleCases";
 import styles from "./ResultsPage.module.css";
 import TopBar from "../components/TopBar";
+import useLocalCaseDatabase from "../hooks/useLocalCaseDatabase";
+import {
+  getDocTypeKey as getDocumentTypeKey,
+  getDocumentLabel,
+  getPrimaryDateText,
+  getResultTitle as buildResultTitle,
+  getResultTypeLabel as buildResultTypeLabel,
+} from "../data/documentUtils";
 import {
   FILTER_SECTIONS,
   buildFilterSections,
@@ -40,6 +47,7 @@ const PREVIEW_MAX_WIDTH = 760;
 const PREVIEW_RESIZER_WIDTH = 12;
 const PREVIEW_WIDTH_STORAGE_KEY = "jibudocs-results-preview-width";
 const LIST_FALLBACK_WIDTH = 640;
+const RESULTS_BATCH_SIZE = 10;
 const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
   { value: "newest", label: "Newest first" },
@@ -80,34 +88,20 @@ function normalizeFilterState(filters) {
 }
 
 function getDocTypeKey(data) {
-  return data.documentType || "case-law";
+  return getDocumentTypeKey(data);
 }
 
 function getResultTypeLabel(data) {
-  const docType = getDocTypeKey(data);
-  if (docType === "contract") return "Contract";
-  if (docType === "financial-statement") return "Financial Statement";
-  return "Case Law";
+  return buildResultTypeLabel(data);
 }
 
 function getResultTitle(data) {
-  const docType = getDocTypeKey(data);
-  if (docType === "case-law") {
-    const caseRef = data.caseRef || "Untitled";
-    const parties = data.parties ? data.parties.split(" VS ").join(" vs ") : "";
-    return parties ? `${caseRef}: ${parties}` : caseRef;
-  }
-
-  return data.documentTitle || data.companyName || "Untitled document";
+  return buildResultTitle(data);
 }
 
 function getSortDateText(data) {
-  const docType = getDocTypeKey(data);
-  if (docType === "case-law") return data["Decision Date"] || "";
-  if (docType === "contract") {
-    return data["Contract Date"] || data["Signing Date"] || data["Expiration Date"] || "";
-  }
-  return data["Reporting Period End Date"] || "";
+  const dateText = getPrimaryDateText(data);
+  return dateText === "—" ? "" : dateText;
 }
 
 function parseSortDate(value) {
@@ -151,17 +145,24 @@ function getRelevanceScore(data, query) {
     data.documentTitle,
     data.companyName,
     data["Court"],
-    data["Tax Type"],
-    data["Tax Issue Category"],
+    data["Court Level"],
+    data["Decision Type"],
     data["Disposition"],
     data["Prevailing Party"],
-    data["Governing Law"],
-    data["Contract Type"],
-    data["Statement Type"],
-    data["Industry"],
+    data["Judge Name"],
+    data["Jurisdiction"],
+    data["Legal Topics"],
+    data["Sector"],
+    data["Plaintiff Name"],
+    data["Defendant Name"],
+    data["Precedent Name"],
+    data["Cited Statute"],
     data.background,
+    data.issues,
     data.findings,
     data.decision,
+    data.legalPrinciples,
+    data.passageText,
   ]
     .filter(Boolean)
     .join(" ")
@@ -180,6 +181,53 @@ function getRelevanceScore(data, query) {
   });
 
   return score;
+}
+
+function matchesSearchQuery(data, query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const terms = [...new Set(normalizedQuery.split(/\s+/).filter(Boolean))];
+  const titleText = getResultTitle(data).toLowerCase();
+  const searchText = [
+    titleText,
+    getResultTypeLabel(data),
+    getSortDateText(data),
+    data.parties,
+    data["Court"],
+    data["Court Level"],
+    data["Decision Type"],
+    data["Disposition"],
+    data["Prevailing Party"],
+    data["Judge Name"],
+    data["Jurisdiction"],
+    data["Legal Topics"],
+    data["Sector"],
+    data["Plaintiff Name"],
+    data["Defendant Name"],
+    data["Precedent Name"],
+    data["Cited Statute"],
+    data.background,
+    data.issues,
+    data.findings,
+    data.decision,
+    data.legalPrinciples,
+    data.passageText,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (titleText.includes(normalizedQuery) || searchText.includes(normalizedQuery)) {
+    return true;
+  }
+
+  if (terms.length === 1) {
+    return searchText.includes(terms[0]);
+  }
+
+  const matchedTermCount = terms.filter((term) => searchText.includes(term)).length;
+  return matchedTermCount >= Math.max(2, Math.ceil(terms.length * 0.6));
 }
 
 function compareNullableDates(aValue, bValue, direction) {
@@ -300,22 +348,41 @@ export default function ResultsPage() {
   const [sortBy, setSortBy] = useState("relevance");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState("list");
+  const [visibleResultCount, setVisibleResultCount] = useState(RESULTS_BATCH_SIZE);
   const [previewWidth, setPreviewWidth] = useState(getInitialPreviewWidth);
   const [isPreviewResizing, setIsPreviewResizing] = useState(false);
   const [isListFallbackActive, setIsListFallbackActive] = useState(false);
   const resultsAreaRef = useRef(null);
   const sortControlRef = useRef(null);
+  const {
+    caseCount,
+    caseEntries,
+    casesById,
+    error: caseLoadError,
+    isLoading: isCaseDataLoading,
+  } = useLocalCaseDatabase();
 
-  const casesArray = useMemo(() => Object.entries(SAMPLE_CASES), []);
-  const filterSections = useMemo(() => buildFilterSections(SAMPLE_CASES), []);
+  const casesArray = caseEntries;
+  const searchedCasesArray = useMemo(
+    () => casesArray.filter(([, data]) => matchesSearchQuery(data, query)),
+    [casesArray, query]
+  );
+  const filterSections = useMemo(
+    () => buildFilterSections(Object.fromEntries(searchedCasesArray)),
+    [searchedCasesArray]
+  );
   const [selectedPreviewId, setSelectedPreviewId] = useState(null);
   const filteredCasesArray = useMemo(
-    () => casesArray.filter(([, data]) => matchesSelectedFilters(data, appliedFilters)),
-    [appliedFilters, casesArray]
+    () => searchedCasesArray.filter(([, data]) => matchesSelectedFilters(data, appliedFilters)),
+    [appliedFilters, searchedCasesArray]
   );
   const sortedCasesArray = useMemo(
     () => sortCases(filteredCasesArray, sortBy, query),
     [filteredCasesArray, query, sortBy]
+  );
+  const visibleCasesArray = useMemo(
+    () => sortedCasesArray.slice(0, visibleResultCount),
+    [sortedCasesArray, visibleResultCount]
   );
   const draftFiltersSignature = useMemo(
     () => JSON.stringify(normalizeFilterState(draftFilters)),
@@ -327,7 +394,7 @@ export default function ResultsPage() {
   );
   const hasPendingFilterChanges = draftFiltersSignature !== appliedFiltersSignature;
   const hasAnySelectedFilters = draftFiltersSignature !== "{}" || appliedFiltersSignature !== "{}";
-  const resultCount = filteredCasesArray.length;
+  const resultCount = sortedCasesArray.length;
   const appliedFilterCount = useMemo(
     () => Object.values(appliedFilters).reduce((count, values) => count + values.length, 0),
     [appliedFilters]
@@ -341,6 +408,20 @@ export default function ResultsPage() {
     [sortBy]
   );
   const effectiveViewMode = viewMode === "list" && isListFallbackActive ? "compact" : viewMode;
+  const hasMoreResults = visibleCasesArray.length < sortedCasesArray.length;
+  const resultCountLabel = isCaseDataLoading
+    ? "Loading local database..."
+    : caseLoadError
+      ? "Local database unavailable"
+      : `${resultCount} Result${resultCount === 1 ? "" : "s"}${caseCount ? ` of ${caseCount}` : ""}`;
+  const emptyResultsMessage = isCaseDataLoading
+    ? "Loading the uploaded CSV..."
+    : caseLoadError
+      ? caseLoadError
+      : query.trim()
+        ? `No results match "${query}".`
+        : "No results match the selected filters.";
+  const loadMoreLabel = `Load more results (${visibleCasesArray.length} / ${resultCount})`;
 
   const toggleCollapse = useCallback((key) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -382,9 +463,9 @@ export default function ResultsPage() {
     const items = {};
 
     ids.forEach((id) => {
-      const data = SAMPLE_CASES[id];
+      const data = casesById[id];
       if (!data) return;
-      items[id] = data.parties || data.companyName || data.documentTitle;
+      items[id] = getDocumentLabel(data);
     });
 
     sessionStorage.setItem("reportItems", JSON.stringify(items));
@@ -397,9 +478,9 @@ export default function ResultsPage() {
         documentType: chosenType,
         ids,
         count: ids.length,
-      })
+        })
     );
-  }, [query]);
+  }, [casesById, query]);
 
   const startReportFlow = useCallback((sourceType, chosenType, ids) => {
     persistReportContext(sourceType, chosenType, ids);
@@ -418,16 +499,16 @@ export default function ResultsPage() {
     const groups = {};
 
     ids.forEach((id) => {
-      const data = SAMPLE_CASES[id];
+      const data = casesById[id];
       if (!data) return;
 
-      const docType = data.documentType || "case-law";
+      const docType = getDocTypeKey(data);
       if (!groups[docType]) groups[docType] = [];
-      groups[docType].push({ id, label: data.parties || data.companyName || data.documentTitle });
+      groups[docType].push({ id, label: getDocumentLabel(data) });
     });
 
     return groups;
-  }, []);
+  }, [casesById]);
 
   const continueReportFlow = useCallback((sourceType, groups) => {
     const typeKeys = Object.keys(groups);
@@ -497,15 +578,33 @@ export default function ResultsPage() {
     navigate(trimmed ? `/results?q=${encodeURIComponent(trimmed)}` : "/results", { replace: true });
   }, [navigate, query]);
 
+  const handleLoadMore = useCallback(() => {
+    setVisibleResultCount((current) => Math.min(current + RESULTS_BATCH_SIZE, sortedCasesArray.length));
+  }, [sortedCasesArray.length]);
+
   useEffect(() => {
     setQuery(searchParamQuery);
   }, [searchParamQuery]);
+
+  useEffect(() => {
+    setVisibleResultCount(RESULTS_BATCH_SIZE);
+  }, [query, appliedFiltersSignature]);
 
   useEffect(() => {
     if (selectedPreviewId === null) return;
     if (filteredCasesArray.some(([id]) => id === selectedPreviewId)) return;
     setSelectedPreviewId(null);
   }, [filteredCasesArray, selectedPreviewId]);
+
+  useEffect(() => {
+    if (selectedPreviewId === null) return;
+    if (visibleCasesArray.some(([id]) => id === selectedPreviewId)) return;
+    setSelectedPreviewId(null);
+  }, [selectedPreviewId, visibleCasesArray]);
+
+  useEffect(() => {
+    setCollectionIds((prev) => new Set([...prev].filter((id) => casesById[id])));
+  }, [casesById]);
 
   useEffect(() => {
     const node = resultsAreaRef.current;
@@ -704,12 +803,7 @@ export default function ResultsPage() {
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
 
-        <main
-          ref={resultsAreaRef}
-          className={styles.resultsArea}
-          style={collectionIds.size > 0 ? { paddingBottom: "calc(86px + var(--app-safe-bottom, 0px))" } : undefined}
-        >
-
+        <main className={styles.resultsArea}>
           <div className={styles.resultCountRow}>
             <div className={styles.resultCountLeft}>
               {!sidebarOpen && (
@@ -719,7 +813,7 @@ export default function ResultsPage() {
                 </button>
               )}
               <div className={styles.resultCount}>
-                {resultCount} Result{resultCount === 1 ? "" : "s"}
+                {resultCountLabel}
               </div>
             </div>
             <div className={styles.resultUtilityGroup}>
@@ -838,72 +932,92 @@ export default function ResultsPage() {
           </div>
 
           <div
-            className={
-              effectiveViewMode === "cards"
-                ? styles.resultCardStack
-                : effectiveViewMode === "list"
-                  ? styles.resultTable
-                  : styles.resultList
-            }
+            ref={resultsAreaRef}
+            className={styles.resultsViewport}
+            style={collectionIds.size > 0 ? { paddingBottom: "calc(86px + var(--app-safe-bottom, 0px))" } : undefined}
           >
-            {sortedCasesArray.length === 0 ? (
-              <div className={styles.emptyResults}>No results match the selected filters.</div>
-            ) : (
-              <>
-                {effectiveViewMode === "list" && (
-                  <div className={styles.resultTableHeader}>
-                    <span className={styles.resultTableHeaderCell}>Pick</span>
-                    <span className={styles.resultTableHeaderCell}>Document</span>
-                    <span className={styles.resultTableHeaderCell}>Type</span>
-                    <span className={styles.resultTableHeaderCell}>Date</span>
-                    <span className={styles.resultTableHeaderCell}>Key Data</span>
-                    <span className={styles.resultTableHeaderCell}>Open</span>
-                  </div>
-                )}
-                {sortedCasesArray.map(([id, data]) =>
-                  effectiveViewMode === "list" ? (
-                    <ResultTableRow
-                      key={id}
-                      id={id}
-                      data={data}
-                      isPreviewActive={selectedPreviewId === id}
-                      onPreviewSelect={setSelectedPreviewId}
-                      onAddToReport={toggleCollectionItem}
-                      addedToReport={collectionIds.has(id)}
-                      collectionFull={collectionIds.size >= MAX_COLLECTION}
-                    />
-                  ) : effectiveViewMode === "compact" ? (
-                  <ResultCompactRow
-                    key={id}
-                    id={id}
-                    data={data}
-                    isPreviewActive={selectedPreviewId === id}
-                    onPreviewSelect={setSelectedPreviewId}
-                    onAddToReport={toggleCollectionItem}
-                    addedToReport={collectionIds.has(id)}
-                    collectionFull={collectionIds.size >= MAX_COLLECTION}
-                    customFields={viewMode === "compact" ? compactFieldsMap[id] : undefined}
-                    showEditButton={viewMode === "compact"}
-                    onEditCard={(targetId) => handleEditCard(targetId, "compact")}
-                  />
+            <div className={styles.resultsContent}>
+              <div
+                className={
+                  effectiveViewMode === "cards"
+                    ? styles.resultCardStack
+                    : effectiveViewMode === "list"
+                      ? styles.resultTable
+                      : styles.resultList
+                }
+              >
+                {sortedCasesArray.length === 0 ? (
+                  <div className={styles.emptyResults}>{emptyResultsMessage}</div>
                 ) : (
-                  <ResultCard
-                    key={id}
-                    id={id}
-                    data={data}
-                    isPreviewActive={selectedPreviewId === id}
-                    onPreviewSelect={setSelectedPreviewId}
-                    expandedFooter={expandedFooters[id]}
-                    onToggleFooter={toggleFooter}
-                    onAddToReport={toggleCollectionItem}
-                    addedToReport={collectionIds.has(id)}
-                    collectionFull={collectionIds.size >= MAX_COLLECTION}
-                    customFields={customFieldsMap[id]}
-                    onEditCard={(targetId) => handleEditCard(targetId, "cards")}
-                  />
-                  )
+                  <>
+                    {effectiveViewMode === "list" && (
+                      <div className={styles.resultTableHeader}>
+                        <span className={styles.resultTableHeaderCell}>Pick</span>
+                        <span className={styles.resultTableHeaderCell}>Document</span>
+                        <span className={styles.resultTableHeaderCell}>Type</span>
+                        <span className={styles.resultTableHeaderCell}>Date</span>
+                        <span className={styles.resultTableHeaderCell}>Key Data</span>
+                        <span className={styles.resultTableHeaderCell}>Open</span>
+                      </div>
+                    )}
+                    {visibleCasesArray.map(([id, data]) =>
+                      effectiveViewMode === "list" ? (
+                        <ResultTableRow
+                          key={id}
+                          id={id}
+                          data={data}
+                          isPreviewActive={selectedPreviewId === id}
+                          onPreviewSelect={setSelectedPreviewId}
+                          onAddToReport={toggleCollectionItem}
+                          addedToReport={collectionIds.has(id)}
+                          collectionFull={collectionIds.size >= MAX_COLLECTION}
+                        />
+                      ) : effectiveViewMode === "compact" ? (
+                        <ResultCompactRow
+                          key={id}
+                          id={id}
+                          data={data}
+                          isPreviewActive={selectedPreviewId === id}
+                          onPreviewSelect={setSelectedPreviewId}
+                          onAddToReport={toggleCollectionItem}
+                          addedToReport={collectionIds.has(id)}
+                          collectionFull={collectionIds.size >= MAX_COLLECTION}
+                          customFields={viewMode === "compact" ? compactFieldsMap[id] : undefined}
+                          showEditButton={viewMode === "compact"}
+                          onEditCard={(targetId) => handleEditCard(targetId, "compact")}
+                        />
+                      ) : (
+                        <ResultCard
+                          key={id}
+                          id={id}
+                          data={data}
+                          isPreviewActive={selectedPreviewId === id}
+                          onPreviewSelect={setSelectedPreviewId}
+                          expandedFooter={expandedFooters[id]}
+                          onToggleFooter={toggleFooter}
+                          onAddToReport={toggleCollectionItem}
+                          addedToReport={collectionIds.has(id)}
+                          collectionFull={collectionIds.size >= MAX_COLLECTION}
+                          customFields={customFieldsMap[id]}
+                          onEditCard={(targetId) => handleEditCard(targetId, "cards")}
+                        />
+                      )
+                    )}
+                  </>
                 )}
-              </>
+              </div>
+            </div>
+
+            {hasMoreResults && (
+              <div className={styles.loadMoreRow}>
+                <button
+                  type="button"
+                  className={styles.loadMoreBtn}
+                  onClick={handleLoadMore}
+                >
+                  {loadMoreLabel}
+                </button>
+              </div>
             )}
           </div>
         </main>
@@ -935,7 +1049,7 @@ export default function ResultsPage() {
       )}
 
       {editCardId && (() => {
-        const docType = SAMPLE_CASES[editCardId]?.documentType || "case-law";
+        const docType = getDocTypeKey(casesById[editCardId]);
         const { defaults, all } = getFieldsForDocType(docType, editMode);
         return (
           <EditCardModal
@@ -963,11 +1077,13 @@ export default function ResultsPage() {
           </div>
           <div className={styles.collectorPills}>
             {[...collectionIds].map((id) => {
-              const data = SAMPLE_CASES[id];
-              const label = data?.caseRef || data?.companyName || data?.documentTitle || id;
+              const data = casesById[id];
+              const label = data ? getDocumentLabel(data) : id;
               return (
                 <span key={id} className={styles.collectorPill}>
-                  {label}
+                  <span className={styles.collectorPillLabel} title={label}>
+                    {label}
+                  </span>
                   <span className={styles.collectorPillRemove} onClick={() => toggleCollectionItem(id)}>&times;</span>
                 </span>
               );

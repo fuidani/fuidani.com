@@ -1,36 +1,13 @@
 import styles from "../ResultsPage.module.css";
+import {
+  getDocTypeKey,
+  getPrimaryDateText,
+  getResultTitle,
+  getResultTypeLabel,
+  getSourceLabel,
+} from "../../data/documentUtils";
 
-function getDocTypeKey(data) {
-  return data.documentType || "case-law";
-}
-
-function getTitleText(data, docType) {
-  if (docType === "case-law") {
-    return `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`;
-  }
-
-  return data.documentTitle;
-}
-
-function getTypeLabel(docType) {
-  if (docType === "contract") return "Contract";
-  if (docType === "financial-statement") return "Financial Statement";
-  return "Case Law";
-}
-
-function getSourceText(data, docType) {
-  if (docType === "case-law") {
-    return data["Court"] || data["Court Level"] || "Tax Appeals Tribunal";
-  }
-
-  if (docType === "contract") {
-    return data["Governing Law"] || "Contract";
-  }
-
-  return data.companyName || data["Industry"] || "Financial Statement";
-}
-
-function getDateText(data, docType) {
+function _getDateText(data, docType) {
   if (docType === "case-law") return data["Decision Date"] || "—";
   if (docType === "contract") return data["Contract Date"] || data["Signing Date"] || "—";
   return data["Reporting Period End Date"] || "—";
@@ -85,10 +62,10 @@ export default function ResultTableRow({
   collectionFull,
 }) {
   const docType = getDocTypeKey(data);
-  const titleText = getTitleText(data, docType);
-  const typeLabel = getTypeLabel(docType);
-  const sourceText = getSourceText(data, docType);
-  const dateText = getDateText(data, docType);
+  const titleText = getResultTitle(data);
+  const typeLabel = getResultTypeLabel(data);
+  const sourceText = getSourceLabel(data);
+  const dateText = getPrimaryDateText(data);
   const keyData = getKeyData(data, docType);
 
   return (

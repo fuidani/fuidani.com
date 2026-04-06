@@ -122,20 +122,19 @@ export const SAMPLE_CASES = {
 };
 
 export const REPORT_SECTIONS = [
-  { id: 'background',  label: 'Background',              enabled: true },
-  { id: 'issues',      label: 'Issues for Determination', enabled: true },
-  { id: 'appellant',   label: "Appellant's Argument",     enabled: true },
-  { id: 'respondent',  label: "Respondent's Argument",    enabled: true },
-  { id: 'findings',    label: 'Tribunal Findings',        enabled: true },
-  { id: 'decision',    label: "Tribunal's Decision",      enabled: true },
+  { id: 'background',       label: 'Overview',          enabled: true },
+  { id: 'issues',           label: 'Issues',            enabled: true },
+  { id: 'findings',         label: 'Holdings',          enabled: true },
+  { id: 'decision',         label: 'Decision Summary',  enabled: true },
+  { id: 'legalPrinciples',  label: 'Legal Principles',  enabled: false },
+  { id: 'passageText',      label: 'Key Passage',       enabled: false },
 ];
 
 export const FIELD_CATEGORIES = {
   'Case Info': ['Court','Court Level','Decision Date','Decision Type','Jurisdiction','Judge Name','Disposition','Prevailing Party'],
-  'Parties': ['Plaintiff Name','Plaintiff Type','Plaintiff Law Firm','Defendant Name','Defendant Type','Defendant Law Firm'],
-  'Tax': ['Tax Type','Tax Issue Category','Tax Years','Taxpayer Classification','Revenue Authority'],
-  'Financial': ['Disputed Tax Amount','Penalty Amount','Interest Amount','Monetary Damages'],
-  'Legal': ['Issues','Holdings','Key Facts','Legal Principles','Legal Topics','Overview','Remedies'],
+  'Parties': ['Plaintiff Name','Plaintiff Type','Plaintiff Law Firm','Plaintiff Lead Attorney','Defendant Name','Defendant Type','Defendant Law Firm','Defendant Lead Attorney'],
+  'Outcome': ['Disposition','Dismissal Reason','Monetary Damages','Remedies','Previous Court','Previous Case Winner'],
+  'Legal': ['Issues','Holdings','Key Facts','Legal Principles','Legal Topics','Overview','Passage Text','Sector'],
   'Precedent': ['Precedent Citation','Precedent Name','Cited Statute','Statute Citation']
 };
 
@@ -177,7 +176,7 @@ export const FIELD_CATEGORIES_BY_TYPE = {
 };
 
 export const DEFAULT_META_FIELDS_BY_TYPE = {
-  'case-law': ['Court', 'Court Level', 'Decision Date', 'Tax Type', 'Disposition', 'Prevailing Party', 'Disputed Tax Amount', 'Penalty Amount', 'Taxpayer Classification'],
+  'case-law': ['Court', 'Court Level', 'Decision Date', 'Decision Type', 'Disposition', 'Prevailing Party', 'Judge Name', 'Legal Topics', 'Monetary Damages'],
   'financial-statement': ['Statement Type', 'Reporting Period End Date', 'Industry', 'Revenue', 'Profit Or Loss', 'Auditor Opinion'],
   'contract': ['Contract Name', 'Contract Type', 'Contract Date', 'Parties', 'Governing Law', 'Contract Value', 'Currency'],
 };

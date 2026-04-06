@@ -6,6 +6,7 @@ import {
   FOOTER_SECTIONS_CASE,
 } from "./constants";
 import styles from "../ResultsPage.module.css";
+import { getDocTypeKey, getResultTitle } from "../../data/documentUtils";
 
 export default function ResultCard({
   id,
@@ -20,8 +21,8 @@ export default function ResultCard({
   customFields,
   onEditCard,
 }) {
-  const docType = data.documentType;
-  const isCase = !docType;
+  const docType = getDocTypeKey(data);
+  const isCase = docType === "case-law";
   const footerSections = isCase ? null : FOOTER_SECTIONS_BY_TYPE[docType];
 
   const defaultFields = docType === "financial-statement"
@@ -33,9 +34,7 @@ export default function ResultCard({
     ? customFields.filter((f) => f.visible).map((f) => f.name)
     : defaultFields;
 
-  const titleText = isCase
-    ? `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`
-    : data.documentTitle;
+  const titleText = getResultTitle(data);
   const showSubtitle = !isCase;
   const useWideGrid = !isCase;
 

@@ -3,11 +3,12 @@
 export const FILTER_DEFS = [
   { key: "documentType", label: "Document Type", field: "documentType", defaultOpen: true, fallback: "case-law",
     displayLabel: { "case-law": "Case Law", "financial-statement": "Financial Statement", "contract": "Contract" } },
-  { key: "taxType",      label: "Tax Type",      field: "Tax Type",     defaultOpen: true },
+  { key: "courtLevel",   label: "Court Level",   field: "Court Level",  defaultOpen: true },
+  { key: "court",        label: "Court",         field: "Court",        defaultOpen: false },
   { key: "disposition",  label: "Disposition",    field: "Disposition",  defaultOpen: true },
-  { key: "prevailingParty",      label: "Prevailing Party",      field: "Prevailing Party",      defaultOpen: true },
-  { key: "taxIssueCategory",     label: "Tax Issue Category",     field: "Tax Issue Category",     defaultOpen: false },
-  { key: "taxpayerClassification", label: "Taxpayer Classification", field: "Taxpayer Classification", defaultOpen: false },
+  { key: "prevailingParty",      label: "Prevailing Party",      field: "Prevailing Party",      defaultOpen: false },
+  { key: "legalTopics",  label: "Legal Topic",    field: "Legal Topics", defaultOpen: true, splitPattern: /\s*;\s*/ },
+  { key: "sector",       label: "Sector",         field: "Sector",       defaultOpen: false, splitPattern: /\s*;\s*/ },
   { key: "decisionYear", label: "Decision Year", field: "Decision Date", defaultOpen: false, extract: (v) => v?.match(/\d{4}/)?.[0] },
 ];
 
@@ -15,7 +16,7 @@ export function getFilterOptionLabels(def, item) {
   const raw = item[def.field] || def.fallback;
   if (!raw) return [];
 
-  const values = def.extract ? [def.extract(raw)] : String(raw).split(" / ");
+  const values = def.extract ? [def.extract(raw)] : String(raw).split(def.splitPattern || " / ");
   return values
     .map((value) => {
       const trimmed = value?.trim();
@@ -57,21 +58,21 @@ export function buildFilterSections(cases) {
 export const FILTER_SECTIONS = FILTER_DEFS.map((d) => ({ key: d.key, label: d.label, options: [], defaultOpen: d.defaultOpen }));
 
 export const SUGGESTED_CHIPS = [
-  "Customs Duty",
-  "Transfer Pricing",
-  "Large Taxpayer",
+  "Judicial Review",
+  "Constitutional",
+  "High Court",
   "Dismissed",
-  "2025 Decisions",
+  "2024 Decisions",
 ];
 
 export const CARD_FIELDS = [
   "Court",
-  "Tax Type",
   "Decision Date",
+  "Decision Type",
   "Disposition",
-  "Disputed Tax Amount",
   "Prevailing Party",
-  "Tax Issue Category",
+  "Legal Topics",
+  "Monetary Damages",
 ];
 
 export const CARD_FIELDS_FINANCIAL = [
@@ -101,9 +102,9 @@ export const CARD_FIELDS_CONTRACT = [
 export const LIST_FIELDS = [
   "Court",
   "Decision Date",
-  "Tax Type",
   "Disposition",
-  "Prevailing Party",
+  "Legal Topics",
+  "Judge Name",
 ];
 
 export const LIST_FIELDS_FINANCIAL = [
@@ -124,9 +125,9 @@ export const LIST_FIELDS_CONTRACT = [
 
 export const ALL_FIELDS = [
   "Court", "Court Level", "Decision Date", "Decision Type", "Prevailing Party",
-  "Disposition", "Legal Topics", "Jurisdiction", "Issues", "Tax Type",
-  "Tax Issue Category", "Taxpayer Classification", "Revenue Authority",
-  "Disputed Tax Amount", "Penalty Amount", "Judge Name",
+  "Disposition", "Judge Name", "Jurisdiction", "Legal Topics", "Sector",
+  "Plaintiff Name", "Defendant Name", "Monetary Damages", "Cited Statute",
+  "Precedent Name", "Statute Citation",
 ];
 
 export const ALL_FIELDS_FINANCIAL = [

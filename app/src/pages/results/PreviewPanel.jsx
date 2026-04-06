@@ -1,4 +1,8 @@
 import styles from "../ResultsPage.module.css";
+import {
+  getPreviewSections,
+  getResultTitle,
+} from "../../data/documentUtils";
 
 export default function PreviewPanel({ data }) {
   if (!data) {
@@ -11,34 +15,8 @@ export default function PreviewPanel({ data }) {
     );
   }
 
-  const docType = data.documentType;
-  const title = docType
-    ? (data.companyName || data.documentTitle)
-    : `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`;
-  const sections = docType === "financial-statement"
-    ? [
-        { key: "documentTitle", label: "Document Title" },
-        { key: "Statement Type", label: "Statement Type" },
-        { key: "Reporting Period End Date", label: "Reporting Period" },
-        { key: "Revenue", label: "Revenue" },
-        { key: "Profit Or Loss", label: "Profit Or Loss" },
-        { key: "Auditor Opinion", label: "Auditor Opinion" },
-      ]
-    : docType === "contract"
-      ? [
-          { key: "Contract Name", label: "Contract Name" },
-          { key: "Contract Type", label: "Contract Type" },
-          { key: "Legal Area", label: "Legal Area" },
-          { key: "Parties", label: "Parties" },
-          { key: "Contract Value", label: "Contract Value" },
-          { key: "Governing Law", label: "Governing Law" },
-        ]
-      : [
-          { key: "background", label: "Background" },
-          { key: "issues", label: "Issues" },
-          { key: "findings", label: "Findings" },
-          { key: "decision", label: "Decision" },
-        ];
+  const title = getResultTitle(data);
+  const sections = getPreviewSections(data);
   return (
     <aside className={styles.previewPanel}>
       <h3 className={styles.previewTitle}>{title}</h3>

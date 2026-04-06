@@ -4,6 +4,12 @@ import {
   LIST_FIELDS_CONTRACT,
 } from "./constants";
 import styles from "../ResultsPage.module.css";
+import {
+  getDocTypeKey as getDocumentTypeKey,
+  getResultTitle,
+  getResultTypeLabel,
+  getSourceLabel,
+} from "../../data/documentUtils";
 
 const DEFAULT_FIELDS_BY_TYPE = {
   "case-law": LIST_FIELDS,
@@ -11,7 +17,7 @@ const DEFAULT_FIELDS_BY_TYPE = {
   contract: LIST_FIELDS_CONTRACT,
 };
 
-function getDocTypeKey(data) {
+function _getDocTypeKey(data) {
   return data.documentType || "case-law";
 }
 
@@ -23,7 +29,7 @@ function getVisibleFields(docType, customFields) {
   return DEFAULT_FIELDS_BY_TYPE[docType] || LIST_FIELDS;
 }
 
-function getTitleText(data, docType) {
+function _getTitleText(data, docType) {
   if (docType === "case-law") {
     return `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`;
   }
@@ -31,13 +37,13 @@ function getTitleText(data, docType) {
   return data.documentTitle;
 }
 
-function getTypeLabel(docType) {
+function _getTypeLabel(docType) {
   if (docType === "contract") return "Contract";
   if (docType === "financial-statement") return "Financial Statement";
   return "Case Law";
 }
 
-function getSublineText(data, docType) {
+function _getSublineText(data, docType) {
   if (docType === "case-law") {
     return data["Court"] || data["Court Level"] || "Tax Appeals Tribunal";
   }
@@ -76,14 +82,14 @@ export default function ResultListRow({
   onEditCard,
   showEditButton = true,
 }) {
-  const docType = getDocTypeKey(data);
+  const docType = getDocumentTypeKey(data);
   const hasCustomFields = customFields !== undefined;
   const visibleFields = getVisibleFields(docType, customFields);
   const defaultFields = getVisibleFields(docType, null);
   const metaFields = (hasCustomFields ? visibleFields : defaultFields).filter((field) => data[field]);
-  const titleText = getTitleText(data, docType);
-  const typeLabel = getTypeLabel(docType);
-  const sublineText = getSublineText(data, docType);
+  const titleText = getResultTitle(data);
+  const typeLabel = getResultTypeLabel(data);
+  const sublineText = getSourceLabel(data);
 
   return (
     <div
