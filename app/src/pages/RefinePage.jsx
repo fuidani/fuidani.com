@@ -231,6 +231,7 @@ export default function RefinePage() {
 
       {/* Page Content */}
       <div className={styles.page}>
+       <div className={styles.pageInner}>
         {/* Query Context */}
         <div className={styles.queryContext}>
           <div className={styles.queryIcon}>
@@ -278,6 +279,7 @@ export default function RefinePage() {
             {EXTRA_QUESTIONS.map(renderQuestionCard)}
           </div>
         </div>
+       </div>
       </div>
 
       {/* Action Bar */}
