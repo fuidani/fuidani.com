@@ -1,29 +1,33 @@
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --app-height: 100dvh;
+    --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: 'Noto Sans', sans-serif;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    height: var(--app-height);
+    overflow: hidden;
+  }
 }
 
-:root {
-  --app-height: 100dvh;
-  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-html,
-body {
-  min-height: 100%;
-}
-
-body {
-  font-family: 'Noto Sans', sans-serif;
-  color: #1e293b;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#root {
-  height: var(--app-height);
-  overflow: hidden;
+/* ── Keyframes for ReportAIChat typing dots ── */
+@keyframes rcDot {
+  0%, 60%, 100% { opacity: 0.25; transform: scale(0.85); }
+  30% { opacity: 1; transform: scale(1); }
 }
 
 @media print {

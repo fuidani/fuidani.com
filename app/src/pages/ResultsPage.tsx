@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import styles from "./ResultsPage.module.css";
 import TopBar from "../components/TopBar";
 import useLocalCaseDatabase from "../hooks/useLocalCaseDatabase";
+import type { CaseRecord } from "../data/sampleCases";
 import {
   getDocTypeKey as getDocumentTypeKey,
   getDocumentLabel,
@@ -50,6 +50,7 @@ const PREVIEW_RESIZER_WIDTH = 12;
 const PREVIEW_WIDTH_STORAGE_KEY = "jibudocs-results-preview-width";
 const LIST_FALLBACK_WIDTH = 640;
 const RESULTS_BATCH_SIZE = 10;
+
 const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
   { value: "newest", label: "Newest first" },
@@ -57,7 +58,8 @@ const SORT_OPTIONS = [
   { value: "title", label: "Title A-Z" },
   { value: "type", label: "Document type" },
 ];
-const MONTH_INDEX_BY_NAME = {
+
+const MONTH_INDEX_BY_NAME: Record<string, number> = {
   january: 0,
   february: 1,
   march: 2,
@@ -72,41 +74,40 @@ const MONTH_INDEX_BY_NAME = {
   december: 11,
 };
 
-function getInitialPreviewWidth() {
+function getInitialPreviewWidth(): number {
   if (typeof window === "undefined") return PREVIEW_DEFAULT_WIDTH;
-
   const storedValue = Number(window.localStorage.getItem(PREVIEW_WIDTH_STORAGE_KEY));
   return Number.isFinite(storedValue) ? storedValue : PREVIEW_DEFAULT_WIDTH;
 }
 
-function normalizeFilterState(filters) {
+function normalizeFilterState(filters: Record<string, string[]>): Record<string, string[]> {
   return Object.keys(filters)
     .sort()
-    .reduce((acc, key) => {
+    .reduce<Record<string, string[]>>((acc, key) => {
       const values = [...(filters[key] || [])].sort();
       if (values.length > 0) acc[key] = values;
       return acc;
     }, {});
 }
 
-function getDocTypeKey(data) {
+function getDocTypeKey(data: CaseRecord): string {
   return getDocumentTypeKey(data);
 }
 
-function getResultTypeLabel(data) {
+function getResultTypeLabel(data: CaseRecord): string {
   return buildResultTypeLabel(data);
 }
 
-function getResultTitle(data) {
+function getResultTitle(data: CaseRecord): string {
   return buildResultTitle(data);
 }
 
-function getSortDateText(data) {
+function getSortDateText(data: CaseRecord): string {
   const dateText = getPrimaryDateText(data);
   return dateText === "—" ? "" : dateText;
 }
 
-function parseSortDate(value) {
+function parseSortDate(value: string | undefined): number | null {
   if (!value) return null;
 
   const normalizedValue = String(value).trim();
@@ -127,11 +128,11 @@ function parseSortDate(value) {
   return Number.isNaN(fallbackTimestamp) ? null : fallbackTimestamp;
 }
 
-function getSortDateValue(data) {
+function getSortDateValue(data: CaseRecord): number | null {
   return parseSortDate(getSortDateText(data));
 }
 
-function getRelevanceScore(data, query) {
+function getRelevanceScore(data: CaseRecord, query: string): number {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return 0;
 
@@ -185,7 +186,7 @@ function getRelevanceScore(data, query) {
   return score;
 }
 
-function matchesSearchQuery(data, query) {
+function matchesSearchQuery(data: CaseRecord, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return true;
 
@@ -232,17 +233,25 @@ function matchesSearchQuery(data, query) {
   return matchedTermCount >= Math.max(2, Math.ceil(terms.length * 0.6));
 }
 
-function compareNullableDates(aValue, bValue, direction) {
+function compareNullableDates(
+  aValue: number | null,
+  bValue: number | null,
+  direction: "asc" | "desc"
+): number {
   const aMissing = aValue == null;
   const bMissing = bValue == null;
 
   if (aMissing && bMissing) return 0;
   if (aMissing) return 1;
   if (bMissing) return -1;
-  return direction === "asc" ? aValue - bValue : bValue - aValue;
+  return direction === "asc" ? aValue! - bValue! : bValue! - aValue!;
 }
 
-function sortCases(entries, sortBy, query) {
+function sortCases(
+  entries: [string, CaseRecord][],
+  sortBy: string,
+  query: string
+): [string, CaseRecord][] {
   return entries
     .map(([id, data], originalIndex) => ({ id, data, originalIndex }))
     .sort((a, b) => {
@@ -292,6 +301,16 @@ function sortCases(entries, sortBy, query) {
     .map(({ id, data }) => [id, data]);
 }
 
+interface MixedTypeChoice {
+  sourceType: string;
+  groups: Record<string, { id: string; label: string }[]>;
+}
+
+interface TooltipPos {
+  top: number;
+  left: number;
+}
+
 /* ─── Main Page Component ────────────────────────────────── */
 
 export default function ResultsPage() {
@@ -299,27 +318,24 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const searchParamQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(searchParamQuery);
-  const mainLayoutRef = useRef(null);
-  const resizeStateRef = useRef({ active: false, containerRight: 0 });
+  const mainLayoutRef = useRef<HTMLDivElement>(null);
+  const resizeStateRef = useRef<{ active: boolean; containerRight: number }>({ active: false, containerRight: 0 });
 
-  // Sidebar visibility
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Filter collapse state
-  const [collapsedSections, setCollapsedSections] = useState(() => {
-    const init = {};
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
     FILTER_SECTIONS.forEach((s) => {
       if (!s.defaultOpen) init[s.key] = true;
     });
     return init;
   });
-  const [draftFilters, setDraftFilters] = useState({});
-  const [appliedFilters, setAppliedFilters] = useState({});
+  const [draftFilters, setDraftFilters] = useState<Record<string, string[]>>({});
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string[]>>({});
 
-  // Manual report collection
-  const [collectionIds, setCollectionIds] = useState(new Set());
+  const [collectionIds, setCollectionIds] = useState<Set<string>>(new Set());
 
-  const toggleCollectionItem = useCallback((id) => {
+  const toggleCollectionItem = useCallback((id: string) => {
     setCollectionIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -336,28 +352,23 @@ export default function ResultsPage() {
     setCollectionIds(new Set());
   }, []);
 
-  // Card footer expansion
-  const [expandedFooters, setExpandedFooters] = useState({});
-
-  // Mixed-type modal
-  const [mixedTypeChoice, setMixedTypeChoice] = useState(null);
-
-  // Edit card modal
-  const [editCardId, setEditCardId] = useState(null);
-  const [editMode, setEditMode] = useState("cards");
-  const [customFieldsMap, setCustomFieldsMap] = useState({});
-  const [compactFieldsMap, setCompactFieldsMap] = useState({});
+  const [expandedFooters, setExpandedFooters] = useState<Record<string, Record<string, boolean>>>({});
+  const [mixedTypeChoice, setMixedTypeChoice] = useState<MixedTypeChoice | null>(null);
+  const [editCardId, setEditCardId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<"cards" | "compact">("cards");
+  const [customFieldsMap, setCustomFieldsMap] = useState<Record<string, { name: string; visible: boolean }[]>>({});
+  const [compactFieldsMap, setCompactFieldsMap] = useState<Record<string, { name: string; visible: boolean }[]>>({});
   const [sortBy, setSortBy] = useState("relevance");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState(null);
-  const tooltipTimer = useRef(null);
-  const [viewMode, setViewMode] = useState("compact");
+  const [tooltipPos, setTooltipPos] = useState<TooltipPos | null>(null);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [viewMode, setViewMode] = useState<"compact" | "cards" | "list">("compact");
   const [visibleResultCount, setVisibleResultCount] = useState(RESULTS_BATCH_SIZE);
   const [previewWidth, setPreviewWidth] = useState(getInitialPreviewWidth);
   const [isPreviewResizing, setIsPreviewResizing] = useState(false);
   const [isListFallbackActive, setIsListFallbackActive] = useState(false);
-  const resultsAreaRef = useRef(null);
-  const sortControlRef = useRef(null);
+  const resultsAreaRef = useRef<HTMLDivElement>(null);
+  const sortControlRef = useRef<HTMLDivElement>(null);
   const {
     caseCount,
     caseEntries,
@@ -375,7 +386,7 @@ export default function ResultsPage() {
     () => buildFilterSections(Object.fromEntries(searchedCasesArray)),
     [searchedCasesArray]
   );
-  const [selectedPreviewId, setSelectedPreviewId] = useState(null);
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const filteredCasesArray = useMemo(
     () => searchedCasesArray.filter(([, data]) => matchesSelectedFilters(data, appliedFilters)),
     [appliedFilters, searchedCasesArray]
@@ -427,17 +438,17 @@ export default function ResultsPage() {
         : "No results match the selected filters.";
   const loadMoreLabel = `Load more results (${visibleCasesArray.length} / ${resultCount})`;
 
-  const toggleCollapse = useCallback((key) => {
+  const toggleCollapse = useCallback((key: string) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
   const expandAllSections = useCallback(() => setCollapsedSections({}), []);
   const collapseAllSections = useCallback(() => {
-    const all = {};
+    const all: Record<string, boolean> = {};
     [...PRIMARY_FILTER_DEFS, ...EXTRA_FILTER_DEFS].forEach((d) => { all[d.key] = true; });
     setCollapsedSections(all);
   }, []);
 
-  const toggleDraftFilter = useCallback((sectionKey, optionLabel) => {
+  const toggleDraftFilter = useCallback((sectionKey: string, optionLabel: string) => {
     setDraftFilters((prev) => {
       const currentValues = prev[sectionKey] || [];
       const nextValues = currentValues.includes(optionLabel)
@@ -462,15 +473,15 @@ export default function ResultsPage() {
     setAppliedFilters({});
   }, []);
 
-  const toggleFooter = useCallback((cardId, section) => {
+  const toggleFooter = useCallback((cardId: string, section: string) => {
     setExpandedFooters((prev) => ({
       ...prev,
       [cardId]: { ...prev[cardId], [section]: !prev[cardId]?.[section] },
     }));
   }, []);
 
-  const persistReportContext = useCallback((sourceType, chosenType, ids) => {
-    const items = {};
+  const persistReportContext = useCallback((sourceType: string, chosenType: string, ids: string[]) => {
+    const items: Record<string, string> = {};
 
     ids.forEach((id) => {
       const data = casesById[id];
@@ -488,16 +499,16 @@ export default function ResultsPage() {
         documentType: chosenType,
         ids,
         count: ids.length,
-        })
+      })
     );
   }, [casesById, query]);
 
-  const startReportFlow = useCallback((sourceType, chosenType, ids) => {
+  const startReportFlow = useCallback((sourceType: string, chosenType: string, ids: string[]) => {
     persistReportContext(sourceType, chosenType, ids);
     navigate("/report");
   }, [navigate, persistReportContext]);
 
-  const proceedWithType = useCallback((chosenType) => {
+  const proceedWithType = useCallback((chosenType: string) => {
     if (!mixedTypeChoice) return;
 
     const ids = (mixedTypeChoice.groups[chosenType] || []).map((item) => item.id);
@@ -505,8 +516,8 @@ export default function ResultsPage() {
     setMixedTypeChoice(null);
   }, [mixedTypeChoice, startReportFlow]);
 
-  const buildGroupsFromIds = useCallback((ids) => {
-    const groups = {};
+  const buildGroupsFromIds = useCallback((ids: string[]) => {
+    const groups: Record<string, { id: string; label: string }[]> = {};
 
     ids.forEach((id) => {
       const data = casesById[id];
@@ -520,7 +531,7 @@ export default function ResultsPage() {
     return groups;
   }, [casesById]);
 
-  const continueReportFlow = useCallback((sourceType, groups) => {
+  const continueReportFlow = useCallback((sourceType: string, groups: Record<string, { id: string; label: string }[]>) => {
     const typeKeys = Object.keys(groups);
     if (typeKeys.length === 1) {
       const chosenType = typeKeys[0];
@@ -556,21 +567,21 @@ export default function ResultsPage() {
     navigate("/report");
   }, [navigate]);
 
-  const handleEditCard = useCallback((id, mode) => {
+  const handleEditCard = useCallback((id: string, mode: "cards" | "compact") => {
     setEditCardId(id);
     setEditMode(mode);
   }, []);
 
-  const handleApplyCustomFields = useCallback((newFields) => {
+  const handleApplyCustomFields = useCallback((newFields: { name: string; visible: boolean }[]) => {
     if (editMode === "compact") {
-      setCompactFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
+      setCompactFieldsMap((prev) => ({ ...prev, [editCardId!]: newFields }));
     } else {
-      setCustomFieldsMap((prev) => ({ ...prev, [editCardId]: newFields }));
+      setCustomFieldsMap((prev) => ({ ...prev, [editCardId!]: newFields }));
     }
     setEditCardId(null);
   }, [editCardId, editMode]);
 
-  const getFieldsForDocType = useCallback((docType, mode = "cards") => {
+  const getFieldsForDocType = useCallback((docType: string, mode: "cards" | "compact" = "cards") => {
     if (mode === "compact") {
       if (docType === "financial-statement") return { defaults: LIST_FIELDS_FINANCIAL, all: ALL_LIST_FIELDS_FINANCIAL };
       if (docType === "contract") return { defaults: LIST_FIELDS_CONTRACT, all: ALL_LIST_FIELDS_CONTRACT };
@@ -653,12 +664,12 @@ export default function ResultsPage() {
     );
   }, [sidebarOpen]);
 
-  const clampPreviewWidth = useCallback((nextWidth) => {
+  const clampPreviewWidth = useCallback((nextWidth: number) => {
     const maxWidth = getPreviewMaxWidth();
     return Math.min(Math.max(nextWidth, PREVIEW_MIN_WIDTH), maxWidth);
   }, [getPreviewMaxWidth]);
 
-  const handlePreviewResizeStart = useCallback((event) => {
+  const handlePreviewResizeStart = useCallback((event: React.PointerEvent) => {
     if (typeof window !== "undefined" && window.innerWidth <= 1100) return;
 
     const rect = mainLayoutRef.current?.getBoundingClientRect();
@@ -672,7 +683,7 @@ export default function ResultsPage() {
     setIsPreviewResizing(true);
   }, []);
 
-  const handlePreviewResizeKeyDown = useCallback((event) => {
+  const handlePreviewResizeKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       setPreviewWidth((current) => clampPreviewWidth(current + 24));
@@ -704,12 +715,12 @@ export default function ResultsPage() {
   useEffect(() => {
     if (!sortMenuOpen) return undefined;
 
-    const handlePointerDown = (event) => {
-      if (sortControlRef.current?.contains(event.target)) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (sortControlRef.current?.contains(event.target as Node)) return;
       setSortMenuOpen(false);
     };
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSortMenuOpen(false);
     };
 
@@ -723,7 +734,7 @@ export default function ResultsPage() {
   }, [sortMenuOpen]);
 
   useEffect(() => {
-    const handlePointerMove = (event) => {
+    const handlePointerMove = (event: PointerEvent) => {
       if (!resizeStateRef.current.active) return;
 
       const nextWidth = resizeStateRef.current.containerRight - event.clientX;
@@ -780,11 +791,31 @@ export default function ResultsPage() {
     };
   }, [isPreviewResizing]);
 
+  // Grid layout classes
+  const mainLayoutClass = [
+    "grid flex-1 min-h-0 overflow-hidden",
+    isPreviewResizing ? "cursor-col-resize" : "",
+  ].filter(Boolean).join(" ");
+
+  const mainLayoutStyle: React.CSSProperties = {
+    gridTemplateColumns: sidebarOpen
+      ? `240px minmax(0, 1fr) 12px minmax(320px, ${previewWidth}px)`
+      : `minmax(0, 1fr) 12px minmax(320px, ${previewWidth}px)`,
+  };
+
   return (
-    <div className={styles.page}>
+    <div
+      className="flex flex-col overflow-hidden font-['Noto_Sans',sans-serif] text-slate-800"
+      style={{
+        height: "var(--app-height)",
+        background: "radial-gradient(circle at center top, rgba(202, 138, 4, 0.10), transparent 50%), linear-gradient(180deg, #fffdf7 0%, #f8fafc 100%)",
+      }}
+    >
       <TopBar activeTab="search" onReportsClick={handleGoToReports} />
-      <div className={styles.searchStrip}>
-        <div className={styles.searchStripInner}>
+
+      {/* Search Strip */}
+      <div className="bg-transparent border-b-0 px-6 pt-5 pb-6 flex-shrink-0 z-[18]">
+        <div className="w-full max-w-[1080px] mx-auto">
           <SearchRow
             query={query}
             onQueryChange={setQuery}
@@ -794,10 +825,12 @@ export default function ResultsPage() {
           />
         </div>
       </div>
+
+      {/* Main 3-column layout */}
       <div
         ref={mainLayoutRef}
-        className={`${styles.mainLayout} ${isPreviewResizing ? styles.mainLayoutResizing : ""} ${!sidebarOpen ? styles.mainLayoutSidebarHidden : ""}`}
-        style={{ "--preview-width": `${previewWidth}px` }}
+        className={mainLayoutClass}
+        style={mainLayoutStyle}
       >
         <FilterSidebar
           filterSections={filterSections}
@@ -817,29 +850,37 @@ export default function ResultsPage() {
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
 
-        <main className={styles.resultsArea}>
-          <div className={styles.resultCountRow}>
-            <div className={styles.resultCountLeft}>
+        {/* Results Area */}
+        <main className="overflow-hidden min-h-0 min-w-0 px-5 py-4 flex flex-col gap-[14px]">
+          {/* Count / controls row */}
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+            <div className="flex items-center gap-2.5">
               {!sidebarOpen && (
-                <button type="button" className={styles.filtersToggleBtn} onClick={() => setSidebarOpen(true)}>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-[5px] px-[10px] py-[5px] bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-600 cursor-pointer transition-[background,border-color] duration-150 hover:bg-slate-50 hover:border-slate-300"
+                  onClick={() => setSidebarOpen(true)}
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                   Filters
                 </button>
               )}
-              <div className={styles.resultCount}>
+              <div className="text-[13px] font-semibold text-slate-500">
                 {resultCountLabel}
               </div>
             </div>
-            <div className={styles.resultUtilityGroup}>
-              <div ref={sortControlRef} className={styles.sortControl}>
-                <label className={styles.sortLabel} htmlFor="results-sort">
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Sort control */}
+              <div ref={sortControlRef} className="inline-flex items-center gap-2 min-w-0">
+                <label className="text-[11px] font-bold text-slate-500 tracking-[0.03em] uppercase whitespace-nowrap" htmlFor="results-sort">
                   Sort by
                 </label>
-                <div className={styles.sortSelectWrap}>
+                <div className="relative inline-flex items-center min-w-[172px] bg-white border border-slate-200 rounded-[10px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background,border-color,box-shadow] duration-150 hover:bg-yellow-50 hover:border-yellow-400 focus-within:border-yellow-400 focus-within:[box-shadow:0_0_0_3px_rgba(245,158,11,0.16)]">
                   <button
                     id="results-sort"
                     type="button"
-                    className={styles.sortSelectBtn}
+                    className="w-full min-w-0 px-3 pr-[34px] py-[7px] text-xs font-semibold text-slate-800 bg-transparent border-none outline-none cursor-pointer text-left"
                     onClick={() => setSortMenuOpen((open) => !open)}
                     aria-haspopup="menu"
                     aria-expanded={sortMenuOpen}
@@ -848,7 +889,7 @@ export default function ResultsPage() {
                     {activeSortOption.label}
                   </button>
                   <svg
-                    className={styles.sortSelectIcon}
+                    className="absolute right-[10px] text-slate-500 pointer-events-none"
                     viewBox="0 0 24 24"
                     width="14"
                     height="14"
@@ -864,7 +905,7 @@ export default function ResultsPage() {
                   {sortMenuOpen && (
                     <div
                       id="results-sort-menu"
-                      className={styles.sortMenu}
+                      className="absolute top-[calc(100%+8px)] left-0 z-40 min-w-full p-1.5 bg-white border border-slate-200 rounded-xl shadow-[0_18px_36px_rgba(15,23,42,0.14)]"
                       role="menu"
                       aria-label="Sort results"
                     >
@@ -875,7 +916,11 @@ export default function ResultsPage() {
                           <button
                             key={option.value}
                             type="button"
-                            className={`${styles.sortMenuOption} ${isActive ? styles.sortMenuOptionActive : ""}`}
+                            className={`w-full flex items-center justify-between gap-2.5 px-[10px] py-[9px] bg-transparent border-none rounded-lg text-slate-700 cursor-pointer text-xs font-semibold text-left transition-[background,color] duration-150 ${
+                              isActive
+                                ? "bg-[#fff3cd] text-[#9a3412]"
+                                : "hover:bg-[#fff7e6] hover:text-slate-800"
+                            }`}
                             role="menuitemradio"
                             aria-checked={isActive}
                             onClick={() => {
@@ -886,7 +931,7 @@ export default function ResultsPage() {
                             <span>{option.label}</span>
                             {isActive && (
                               <svg
-                                className={styles.sortMenuOptionCheck}
+                                className="flex-shrink-0"
                                 viewBox="0 0 24 24"
                                 width="14"
                                 height="14"
@@ -907,32 +952,29 @@ export default function ResultsPage() {
                   )}
                 </div>
               </div>
-              <div className={styles.viewToggle}>
-                <button
-                  type="button"
-                  className={`${styles.viewToggleBtn} ${viewMode === "compact" ? styles.viewToggleBtnActive : ""}`}
-                  onClick={() => setViewMode("compact")}
-                >
-                  Compact
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.viewToggleBtn} ${viewMode === "cards" ? styles.viewToggleBtnActive : ""}`}
-                  onClick={() => setViewMode("cards")}
-                >
-                  Cards
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.viewToggleBtnActive : ""}`}
-                  onClick={() => setViewMode("list")}
-                >
-                  List
-                </button>
+
+              {/* View toggle */}
+              <div className="inline-flex items-center p-[3px] bg-white border border-slate-200 rounded-[10px]">
+                {(["compact", "cards", "list"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`px-3 py-[5px] text-xs font-semibold rounded-lg cursor-pointer border-none transition-[background,color] duration-150 ${
+                      viewMode === mode
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-500 bg-none hover:text-slate-800 hover:bg-slate-50"
+                    }`}
+                    onClick={() => setViewMode(mode)}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
               </div>
-              <div className={styles.reportActionGroup}>
+
+              {/* Report action group */}
+              <div className="flex items-center gap-2">
                 <span
-                  className={styles.tooltipWrap}
+                  className="relative inline-flex"
                   onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     tooltipTimer.current = setTimeout(() => {
@@ -940,12 +982,12 @@ export default function ResultsPage() {
                     }, 400);
                   }}
                   onMouseLeave={() => {
-                    clearTimeout(tooltipTimer.current);
+                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
                     setTooltipPos(null);
                   }}
                 >
                   <button
-                    className={styles.subscribeSearchBtn}
+                    className="inline-flex items-center gap-1.5 px-[14px] py-1.5 text-[13px] font-semibold text-amber-800 bg-[#fef3c7] border border-[#fde68a] rounded-md cursor-pointer transition-all duration-150 hover:bg-[#fde68a] hover:border-yellow-400 disabled:text-yellow-700 disabled:bg-[#fef3c7] disabled:border-[#fde68a] disabled:opacity-65 disabled:cursor-not-allowed"
                     onClick={handleSubscribeToSearch}
                     disabled={resultCount === 0 || collectionIds.size > 0}
                   >
@@ -954,7 +996,10 @@ export default function ResultsPage() {
                   </button>
                 </span>
                 {collectionIds.size > 0 && (
-                  <button className={styles.exportSelectedBtn} onClick={handleBuildSelectedReport}>
+                  <button
+                    className="inline-flex items-center gap-1.5 px-[14px] py-1.5 text-[13px] font-semibold text-white bg-slate-800 border border-slate-800 rounded-md cursor-pointer transition-[background] duration-150 hover:bg-slate-700 hover:border-slate-700"
+                    onClick={handleBuildSelectedReport}
+                  >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     Build Report
                   </button>
@@ -963,37 +1008,52 @@ export default function ResultsPage() {
             </div>
           </div>
 
+          {/* Results viewport */}
           <div
             ref={resultsAreaRef}
-            className={styles.resultsViewport}
-            style={collectionIds.size > 0 ? { paddingBottom: "calc(86px + var(--app-safe-bottom, 0px))" } : undefined}
+            className="min-h-0 min-w-0 flex-1 grid gap-[14px] overflow-hidden"
+            style={{
+              gridTemplateRows: "minmax(0, 1fr) auto",
+              paddingBottom: collectionIds.size > 0 ? "calc(86px + var(--app-safe-bottom, 0px))" : undefined,
+            }}
           >
-            <div className={styles.resultsContent}>
+            {/* Scrollable results content */}
+            <div className="min-h-0 min-w-0 overflow-y-scroll pr-1.5 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] [&::-webkit-scrollbar]:w-[10px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:[background-clip:padding-box] [&::-webkit-scrollbar-thumb:hover]:bg-slate-400 [--result-table-columns:42px_minmax(0,2.5fr)_minmax(90px,0.8fr)_minmax(100px,0.85fr)_minmax(120px,1fr)_52px]">
+              {/* Table header (list mode) */}
+              {effectiveViewMode === "list" && (
+                <div
+                  className="bg-slate-50 border-b border-slate-100 sticky top-0 z-[2]"
+                  style={{ display: "grid", gridTemplateColumns: "var(--result-table-columns)" }}
+                >
+                  {["icon", "Document", "Type", "Source", "Date", "Open"].map((h, i) => (
+                    <span
+                      key={h}
+                      className={`min-w-0 px-3 py-[10px] text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 ${i === 0 || i === 5 ? "flex items-center justify-center text-center" : ""}`}
+                    >
+                      {i === 0 ? (
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                      ) : h}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Result items */}
               <div
                 className={
                   effectiveViewMode === "cards"
-                    ? styles.resultCardStack
+                    ? "flex flex-col gap-[14px]"
                     : effectiveViewMode === "list"
-                      ? styles.resultTable
-                      : styles.resultList
+                      ? `flex flex-col gap-0 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)]`
+                      : "flex flex-col gap-[10px]"
                 }
               >
                 {sortedCasesArray.length === 0 ? (
-                  <div className={styles.emptyResults}>{emptyResultsMessage}</div>
+                  <div className="px-5 py-8 bg-white border border-dashed border-slate-300 rounded-xl text-[13px] text-slate-500 text-center">
+                    {emptyResultsMessage}
+                  </div>
                 ) : (
                   <>
-                    {effectiveViewMode === "list" && (
-                      <div className={styles.resultTableHeader}>
-                        <span className={styles.resultTableHeaderCell} title="Select for report">
-                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-                        </span>
-                        <span className={styles.resultTableHeaderCell}>Document</span>
-                        <span className={styles.resultTableHeaderCell}>Type</span>
-                        <span className={styles.resultTableHeaderCell}>Source</span>
-                        <span className={styles.resultTableHeaderCell}>Date</span>
-                        <span className={styles.resultTableHeaderCell}>Open</span>
-                      </div>
-                    )}
                     {visibleCasesArray.map(([id, data]) =>
                       effectiveViewMode === "list" ? (
                         <ResultTableRow
@@ -1042,11 +1102,12 @@ export default function ResultsPage() {
               </div>
             </div>
 
+            {/* Load more */}
             {hasMoreResults && (
-              <div className={styles.loadMoreRow}>
+              <div className="flex justify-center py-1.5 pb-1">
                 <button
                   type="button"
-                  className={styles.loadMoreBtn}
+                  className="inline-flex items-center justify-center min-h-11 px-[18px] rounded-[10px] border border-slate-200 bg-white text-slate-900 text-xs font-semibold shadow-[0_8px_20px_rgba(15,23,42,0.06)] cursor-pointer transition-[border-color,background,transform,box-shadow] duration-150 hover:border-yellow-400 hover:bg-yellow-50 hover:-translate-y-px hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)]"
                   onClick={handleLoadMore}
                 >
                   {loadMoreLabel}
@@ -1056,8 +1117,11 @@ export default function ResultsPage() {
           </div>
         </main>
 
+        {/* Preview resizer */}
         <div
-          className={`${styles.previewResizer} ${isPreviewResizing ? styles.previewResizerActive : ""}`}
+          className={`relative bg-transparent cursor-col-resize transition-[background] duration-150 touch-none before:content-[''] before:absolute before:top-0 before:left-1/2 before:w-0.5 before:h-full before:rounded-full before:-translate-x-1/2 before:opacity-0 before:bg-yellow-600 before:transition-[opacity,width,background] before:duration-150 hover:before:opacity-100 hover:before:w-[3px] focus-visible:before:opacity-100 focus-visible:outline-none ${
+            isPreviewResizing ? "before:!opacity-100 before:!w-[3px]" : ""
+          }`}
           role="separator"
           aria-label="Resize preview panel"
           aria-orientation="vertical"
@@ -1071,9 +1135,11 @@ export default function ResultsPage() {
           onKeyDown={handlePreviewResizeKeyDown}
           onDoubleClick={handlePreviewResizeReset}
         />
+
         <PreviewPanel data={previewData} />
       </div>
 
+      {/* Mixed type modal */}
       {mixedTypeChoice && (
         <MixedTypeModal
           typeGroups={mixedTypeChoice.groups}
@@ -1082,6 +1148,7 @@ export default function ResultsPage() {
         />
       )}
 
+      {/* Edit card modal */}
       {editCardId && (() => {
         const docType = getDocTypeKey(casesById[editCardId]);
         const { defaults, all } = getFieldsForDocType(docType, editMode);
@@ -1096,42 +1163,63 @@ export default function ResultsPage() {
         );
       })()}
 
+      {/* Collection bar */}
       {collectionIds.size > 0 && (
-        <div className={styles.collectorBar}>
-          <div className={styles.collectorIcon}>
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-slate-800 text-white flex items-center gap-[14px] z-50"
+          style={{
+            padding: "10px 20px calc(10px + var(--app-safe-bottom))",
+            animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
+          <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+          <div className="w-8 h-8 bg-yellow-600/20 rounded-md flex items-center justify-center flex-shrink-0">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ca8a04" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
-          <div className={styles.collectorInfo}>
-            <span className={styles.collectorCount}>{collectionIds.size}/{MAX_COLLECTION} selected</span>
-            <span className={styles.collectorHint}>
+          <div className="flex flex-col gap-px">
+            <span className="text-[13px] font-bold">{collectionIds.size}/{MAX_COLLECTION} selected</span>
+            <span className="text-[11px] text-slate-400">
               {collectionIds.size >= 2
                 ? "Build the report to see the overview summary and export."
                 : "Hand-picked document ready for a one-time report."}
             </span>
           </div>
-          <div className={styles.collectorPills}>
+          <div className="flex gap-1 flex-1 min-w-0 overflow-hidden py-0.5">
             {[...collectionIds].map((id) => {
               const data = casesById[id];
               const label = data ? getDocumentLabel(data) : id;
               return (
-                <span key={id} className={styles.collectorPill}>
-                  <span className={styles.collectorPillLabel} title={label}>
-                    {label}
+                <span key={id} className="inline-flex items-center gap-[5px] px-[10px] py-1 bg-white/10 rounded text-[11px] font-medium min-w-0 flex-[1_1_0]">
+                  <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+                  <span
+                    className="flex-shrink-0 cursor-pointer opacity-50 text-[14px] leading-none transition-opacity duration-150 hover:opacity-100"
+                    onClick={() => toggleCollectionItem(id)}
+                  >
+                    &times;
                   </span>
-                  <span className={styles.collectorPillRemove} onClick={() => toggleCollectionItem(id)}>&times;</span>
                 </span>
               );
             })}
           </div>
-          <button className={styles.clearAllBtn} onClick={clearCollection}>Clear all</button>
-          <button className={styles.buildReportBtn} onClick={handleBuildSelectedReport}>
+          <button
+            className="text-[11px] text-slate-400 bg-none border border-white/15 rounded-[5px] px-3 py-1.5 cursor-pointer whitespace-nowrap transition-all duration-150 hover:text-white hover:border-white/30"
+            onClick={clearCollection}
+          >
+            Clear all
+          </button>
+          <button
+            className="bg-slate-800 text-white border-none px-5 py-2 text-[13px] font-bold rounded-md cursor-pointer whitespace-nowrap transition-[background] duration-150 flex items-center gap-1.5 hover:bg-slate-700"
+            onClick={handleBuildSelectedReport}
+          >
             Build Report &rarr;
           </button>
         </div>
       )}
+
+      {/* Tooltip */}
       {tooltipPos && (
         <div
-          className={`${styles.tooltip} ${styles.tooltipVisible}`}
+          className="fixed px-[10px] py-1.5 bg-white text-slate-500 text-[11px] font-normal leading-[1.4] rounded-md w-max max-w-[220px] pointer-events-none z-[9999] opacity-100 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]"
           style={{ top: tooltipPos.top, left: tooltipPos.left, transform: "translateX(-50%)" }}
         >
           {resultCount === 0

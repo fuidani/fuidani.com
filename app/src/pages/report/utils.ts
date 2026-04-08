@@ -1,13 +1,30 @@
+import { CaseRecord, ReportSection } from "../../data/sampleCases";
+
 export {
   getCompareDocumentHeading,
   getDocumentLabel,
 } from "../../data/documentUtils";
 
-export function formatCompareValue(value) {
-  return value === undefined || value === null || value === "" ? "—" : value;
+export interface ComparisonRow {
+  id: string;
+  label: string;
+  values: string[];
+  isDifferent: boolean;
 }
 
-export function allCompareValuesMatch(values) {
+export interface ComparisonResult {
+  metadataRows: ComparisonRow[];
+  narrativeRows: ComparisonRow[];
+  differingMetadataCount: number;
+  sharedMetadataCount: number;
+  differingNarrativeCount: number;
+}
+
+export function formatCompareValue(value: unknown): string {
+  return value === undefined || value === null || value === "" ? "—" : String(value);
+}
+
+export function allCompareValuesMatch(values: string[]): boolean {
   const normalized = values
     .map((value) => formatCompareValue(value))
     .map((value) => String(value).trim().toLowerCase());
@@ -16,8 +33,12 @@ export function allCompareValuesMatch(values) {
   return normalized.every((value) => value === normalized[0]);
 }
 
-export function getComparisonRows(cases, metaFields, sections) {
-  const metadataRows = metaFields
+export function getComparisonRows(
+  cases: CaseRecord[],
+  metaFields: string[],
+  sections: ReportSection[]
+): ComparisonResult {
+  const metadataRows: ComparisonRow[] = metaFields
     .map((field) => {
       const values = cases.map((doc) => formatCompareValue(doc[field]));
       return {
@@ -29,7 +50,7 @@ export function getComparisonRows(cases, metaFields, sections) {
     })
     .filter((row) => row.values.some((value) => value !== "—"));
 
-  const narrativeRows = sections
+  const narrativeRows: ComparisonRow[] = sections
     .filter((section) => section.enabled)
     .map((section) => {
       const values = cases.map((doc) => formatCompareValue(doc[section.id]));

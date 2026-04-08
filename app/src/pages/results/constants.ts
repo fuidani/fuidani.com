@@ -1,6 +1,36 @@
+import { CaseRecord } from "../../data/sampleCases";
+
 /* ─── Filter definitions ────────────────────────────────── */
 
-export const PRIMARY_FILTER_DEFS = [
+export interface FilterDef {
+  key: string;
+  label: string;
+  field: string;
+  defaultOpen: boolean;
+  fallback?: string;
+  displayLabel?: Record<string, string>;
+  splitPattern?: RegExp;
+  extract?: (v: string) => string | undefined;
+}
+
+export interface FilterOption {
+  label: string;
+  count: number;
+}
+
+export interface FilterSection {
+  key: string;
+  label: string;
+  options: FilterOption[];
+  defaultOpen: boolean;
+}
+
+export interface FooterSectionDef {
+  key: string;
+  label: string;
+}
+
+export const PRIMARY_FILTER_DEFS: FilterDef[] = [
   { key: "documentType", label: "Document Type", field: "documentType", defaultOpen: true, fallback: "case-law",
     displayLabel: { "case-law": "Case Law", "financial-statement": "Financial Statement", "contract": "Contract" } },
   { key: "courtLevel",   label: "Court Level",   field: "Court Level",  defaultOpen: true },
@@ -12,7 +42,7 @@ export const PRIMARY_FILTER_DEFS = [
   { key: "decisionYear", label: "Decision Year", field: "Decision Date", defaultOpen: false, extract: (v) => v?.match(/\d{4}/)?.[0] },
 ];
 
-export const EXTRA_FILTER_DEFS = [
+export const EXTRA_FILTER_DEFS: FilterDef[] = [
   { key: "judgeName",      label: "Judge Name",       field: "Judge Name",       defaultOpen: false },
   { key: "jurisdiction",   label: "Jurisdiction",     field: "Jurisdiction",     defaultOpen: false },
   { key: "plaintiffName",  label: "Plaintiff Name",   field: "Plaintiff Name",   defaultOpen: false },
@@ -23,9 +53,9 @@ export const EXTRA_FILTER_DEFS = [
   { key: "legalPrinciples",label: "Legal Principles",  field: "legalPrinciples",  defaultOpen: false, splitPattern: /\s*;\s*/ },
 ];
 
-export const FILTER_DEFS = [...PRIMARY_FILTER_DEFS, ...EXTRA_FILTER_DEFS];
+export const FILTER_DEFS: FilterDef[] = [...PRIMARY_FILTER_DEFS, ...EXTRA_FILTER_DEFS];
 
-export function getFilterOptionLabels(def, item) {
+export function getFilterOptionLabels(def: FilterDef, item: CaseRecord): string[] {
   const raw = item[def.field] || def.fallback;
   if (!raw) return [];
 
@@ -36,10 +66,10 @@ export function getFilterOptionLabels(def, item) {
       if (!trimmed) return null;
       return def.displayLabel?.[trimmed] || trimmed;
     })
-    .filter(Boolean);
+    .filter((v): v is string => v !== null);
 }
 
-export function matchesSelectedFilters(item, selectedFilters) {
+export function matchesSelectedFilters(item: CaseRecord, selectedFilters: Record<string, string[]>): boolean {
   return FILTER_DEFS.every((def) => {
     const selectedValues = selectedFilters[def.key];
     if (!selectedValues?.length) return true;
@@ -50,17 +80,17 @@ export function matchesSelectedFilters(item, selectedFilters) {
 }
 
 /** Build FILTER_SECTIONS with live counts from a cases object (id → data). */
-export function buildFilterSections(cases) {
+export function buildFilterSections(cases: Record<string, CaseRecord>): FilterSection[] {
   const items = Object.values(cases);
   return FILTER_DEFS.map((def) => {
-    const counts = {};
+    const counts: Record<string, number> = {};
     for (const item of items) {
       const labels = getFilterOptionLabels(def, item);
       for (const label of labels) {
         counts[label] = (counts[label] || 0) + 1;
       }
     }
-    const options = Object.entries(counts)
+    const options: FilterOption[] = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([label, count]) => ({ label, count }));
     return { key: def.key, label: def.label, options, defaultOpen: def.defaultOpen };
@@ -68,9 +98,9 @@ export function buildFilterSections(cases) {
 }
 
 /** Backward-compat: static placeholder (prefer buildFilterSections). */
-export const FILTER_SECTIONS = FILTER_DEFS.map((d) => ({ key: d.key, label: d.label, options: [], defaultOpen: d.defaultOpen }));
+export const FILTER_SECTIONS: FilterSection[] = FILTER_DEFS.map((d) => ({ key: d.key, label: d.label, options: [], defaultOpen: d.defaultOpen }));
 
-export const SUGGESTED_CHIPS = [
+export const SUGGESTED_CHIPS: string[] = [
   "Judicial Review",
   "Constitutional",
   "High Court",
@@ -78,7 +108,7 @@ export const SUGGESTED_CHIPS = [
   "2024 Decisions",
 ];
 
-export const CARD_FIELDS = [
+export const CARD_FIELDS: string[] = [
   "Court",
   "Decision Date",
   "Decision Type",
@@ -88,7 +118,7 @@ export const CARD_FIELDS = [
   "Monetary Damages",
 ];
 
-export const CARD_FIELDS_FINANCIAL = [
+export const CARD_FIELDS_FINANCIAL: string[] = [
   "Statement Type",
   "Reporting Period End Date",
   "Industry",
@@ -99,7 +129,7 @@ export const CARD_FIELDS_FINANCIAL = [
   "Is Signed",
 ];
 
-export const CARD_FIELDS_CONTRACT = [
+export const CARD_FIELDS_CONTRACT: string[] = [
   "Contract Name",
   "Contract Type",
   "Legal Area",
@@ -112,7 +142,7 @@ export const CARD_FIELDS_CONTRACT = [
   "Currency",
 ];
 
-export const LIST_FIELDS = [
+export const LIST_FIELDS: string[] = [
   "Court",
   "Decision Date",
   "Disposition",
@@ -120,7 +150,7 @@ export const LIST_FIELDS = [
   "Judge Name",
 ];
 
-export const LIST_FIELDS_FINANCIAL = [
+export const LIST_FIELDS_FINANCIAL: string[] = [
   "Statement Type",
   "Reporting Period End Date",
   "Industry",
@@ -128,7 +158,7 @@ export const LIST_FIELDS_FINANCIAL = [
   "Profit Or Loss",
 ];
 
-export const LIST_FIELDS_CONTRACT = [
+export const LIST_FIELDS_CONTRACT: string[] = [
   "Contract Type",
   "Contract Date",
   "Signing Date",
@@ -136,31 +166,31 @@ export const LIST_FIELDS_CONTRACT = [
   "Contract Value",
 ];
 
-export const ALL_FIELDS = [
+export const ALL_FIELDS: string[] = [
   "Court", "Court Level", "Decision Date", "Decision Type", "Prevailing Party",
   "Disposition", "Judge Name", "Jurisdiction", "Legal Topics", "Sector",
   "Plaintiff Name", "Defendant Name", "Monetary Damages", "Cited Statute",
   "Precedent Name", "Statute Citation",
 ];
 
-export const ALL_FIELDS_FINANCIAL = [
+export const ALL_FIELDS_FINANCIAL: string[] = [
   "Statement Type", "Reporting Period End Date", "Industry", "Country Or Region",
   "Revenue", "Profit Or Loss", "Auditor Opinion", "Is Signed", "Currency",
 ];
 
-export const ALL_FIELDS_CONTRACT = [
+export const ALL_FIELDS_CONTRACT: string[] = [
   "Contract Name", "Contract Type", "Legal Area", "Contract Date",
   "Signing Date", "Expiration Date", "Parties", "Governing Law",
   "Contract Value", "Currency", "Jurisdiction",
 ];
 
-export const ALL_LIST_FIELDS = [...LIST_FIELDS];
+export const ALL_LIST_FIELDS: string[] = [...LIST_FIELDS];
 
-export const ALL_LIST_FIELDS_FINANCIAL = [...LIST_FIELDS_FINANCIAL];
+export const ALL_LIST_FIELDS_FINANCIAL: string[] = [...LIST_FIELDS_FINANCIAL];
 
-export const ALL_LIST_FIELDS_CONTRACT = [...LIST_FIELDS_CONTRACT];
+export const ALL_LIST_FIELDS_CONTRACT: string[] = [...LIST_FIELDS_CONTRACT];
 
-export const FOOTER_SECTIONS_BY_TYPE = {
+export const FOOTER_SECTIONS_BY_TYPE: Record<string, FooterSectionDef[]> = {
   "financial-statement": [
     { key: "companyIdentifiers", label: "Company Identifiers" },
     { key: "reportingStandards", label: "Reporting Standards" },
@@ -180,4 +210,4 @@ export const FOOTER_SECTIONS_BY_TYPE = {
   ],
 };
 
-export const FOOTER_SECTIONS_CASE = ["background", "issues", "findings", "decision"];
+export const FOOTER_SECTIONS_CASE: string[] = ["background", "issues", "findings", "decision"];

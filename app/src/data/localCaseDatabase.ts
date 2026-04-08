@@ -1,30 +1,34 @@
+import { CaseRecord } from "./sampleCases";
+
 const CSV_PATH = "/data/jibudocs_cases.csv";
 
-let cachedCasesById = null;
-let loadPromise = null;
+export type CasesById = Record<string, CaseRecord>;
+
+let cachedCasesById: CasesById | null = null;
+let loadPromise: Promise<CasesById> | null = null;
 
 const EMPTY_VALUE_SET = new Set(["", "n/a", "na", "null", "undefined", "unknown"]);
 
-function normalizeWhitespace(value) {
+function normalizeWhitespace(value: unknown): string {
   return String(value ?? "")
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function normalizeCell(value) {
+function normalizeCell(value: unknown): string {
   const normalized = normalizeWhitespace(value);
   return EMPTY_VALUE_SET.has(normalized.toLowerCase()) ? "" : normalized;
 }
 
-function finalizeCsvRow(row) {
+function finalizeCsvRow(row: string[]): string[] | null {
   const hasContent = row.some((value) => String(value).trim() !== "");
   return hasContent ? row : null;
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
+function parseCsv(text: string): Record<string, string>[] {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let cell = "";
   let inQuotes = false;
 
@@ -83,7 +87,7 @@ function parseCsv(text) {
   const headers = headerRow.map((header) => normalizeCell(header));
 
   return dataRows.map((values) => {
-    const record = {};
+    const record: Record<string, string> = {};
 
     headers.forEach((header, index) => {
       if (!header) return;
@@ -94,7 +98,7 @@ function parseCsv(text) {
   });
 }
 
-function slugify(value) {
+function slugify(value: string): string {
   return normalizeCell(value)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -102,13 +106,13 @@ function slugify(value) {
     .slice(0, 64);
 }
 
-function appendSentence(parts, label, value) {
+function appendSentence(parts: string[], label: string | null, value: string | undefined): void {
   if (!value) return;
   const normalized = value.endsWith(".") ? value : `${value}.`;
   parts.push(label ? `${label}: ${normalized}` : normalized);
 }
 
-function buildCaseId(row, index) {
+function buildCaseId(row: Record<string, string>, index: number): string {
   const slug = slugify(
     [
       row["Decision Date"],
@@ -123,7 +127,7 @@ function buildCaseId(row, index) {
   return slug ? `${slug}-${index + 1}` : `case-${index + 1}`;
 }
 
-function buildPartyLabel(row, index) {
+function buildPartyLabel(row: Record<string, string>, index: number): string {
   const plaintiff = normalizeCell(row["Plaintiff Name"]);
   const defendant = normalizeCell(row["Defendant Name"]);
 
@@ -134,8 +138,8 @@ function buildPartyLabel(row, index) {
   return `Case ${index + 1}`;
 }
 
-function buildBackground(row) {
-  const parts = [];
+function buildBackground(row: Record<string, string>): string {
+  const parts: string[] = [];
 
   appendSentence(parts, null, row.Overview);
   if (row["Key Facts"] && row["Key Facts"] !== row.Overview) {
@@ -148,8 +152,8 @@ function buildBackground(row) {
   return parts.join(" ");
 }
 
-function buildDecision(row) {
-  const parts = [];
+function buildDecision(row: Record<string, string>): string {
+  const parts: string[] = [];
 
   appendSentence(parts, "Disposition", row.Disposition);
   appendSentence(parts, "Remedies", row.Remedies);
@@ -160,7 +164,7 @@ function buildDecision(row) {
   return parts.join(" ");
 }
 
-function normalizeCaseRecord(row, index) {
+function normalizeCaseRecord(row: Record<string, string>, index: number): CaseRecord {
   const parties = buildPartyLabel(row, index);
 
   return {
@@ -178,7 +182,7 @@ function normalizeCaseRecord(row, index) {
   };
 }
 
-async function fetchAndBuildCaseDatabase() {
+async function fetchAndBuildCaseDatabase(): Promise<CasesById> {
   const response = await fetch(CSV_PATH, { cache: "no-store" });
 
   if (!response.ok) {
@@ -189,17 +193,18 @@ async function fetchAndBuildCaseDatabase() {
   const parsedRows = parseCsv(csvText);
   const normalizedRows = parsedRows.map(normalizeCaseRecord);
 
-  return normalizedRows.reduce((acc, row) => {
-    acc[row.id] = row;
+  return normalizedRows.reduce<CasesById>((acc, row) => {
+    const id = (row as CaseRecord & { id: string }).id;
+    acc[id] = row;
     return acc;
   }, {});
 }
 
-export function getCachedLocalCaseDatabase() {
+export function getCachedLocalCaseDatabase(): CasesById | null {
   return cachedCasesById;
 }
 
-export async function loadLocalCaseDatabase() {
+export async function loadLocalCaseDatabase(): Promise<CasesById> {
   if (cachedCasesById) return cachedCasesById;
 
   if (!loadPromise) {

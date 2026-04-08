@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  CasesById,
   getCachedLocalCaseDatabase,
   loadLocalCaseDatabase,
 } from "../data/localCaseDatabase";
+import { CaseRecord } from "../data/sampleCases";
 
-export default function useLocalCaseDatabase() {
-  const [casesById, setCasesById] = useState(() => getCachedLocalCaseDatabase() || {});
-  const [isLoading, setIsLoading] = useState(() => !getCachedLocalCaseDatabase());
-  const [error, setError] = useState(null);
+export interface UseLocalCaseDatabaseResult {
+  casesById: CasesById;
+  caseEntries: [string, CaseRecord][];
+  caseCount: number;
+  error: string | null;
+  isLoading: boolean;
+}
+
+export default function useLocalCaseDatabase(): UseLocalCaseDatabaseResult {
+  const [casesById, setCasesById] = useState<CasesById>(() => getCachedLocalCaseDatabase() || {});
+  const [isLoading, setIsLoading] = useState<boolean>(() => !getCachedLocalCaseDatabase());
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (getCachedLocalCaseDatabase()) return undefined;
@@ -20,7 +30,7 @@ export default function useLocalCaseDatabase() {
         setCasesById(nextCasesById);
         setIsLoading(false);
       })
-      .catch((nextError) => {
+      .catch((nextError: unknown) => {
         if (cancelled) return;
         setError(nextError instanceof Error ? nextError.message : "Could not load local case database.");
         setIsLoading(false);
@@ -31,7 +41,7 @@ export default function useLocalCaseDatabase() {
     };
   }, []);
 
-  const caseEntries = useMemo(() => Object.entries(casesById), [casesById]);
+  const caseEntries = useMemo(() => Object.entries(casesById) as [string, CaseRecord][], [casesById]);
 
   return {
     casesById,

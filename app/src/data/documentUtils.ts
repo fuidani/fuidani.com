@@ -1,22 +1,32 @@
-import { DOC_TYPE_LABELS } from "./sampleCases";
+import { CaseRecord, DocumentType, DOC_TYPE_LABELS } from "./sampleCases";
 
-function cleanText(value) {
+function cleanText(value: unknown): string {
   return String(value ?? "")
     .replace(/\u00a0/g, " ")
     .trim();
 }
 
-function singularDocTypeLabel(docType) {
+function singularDocTypeLabel(docType: string): string {
   if (docType === "financial-statement") return "Financial Statement";
   if (docType === "contract") return "Contract";
   return "Case Law";
 }
 
-export function getDocTypeKey(data) {
+export interface DocumentHeading {
+  eyebrow: string;
+  title: string;
+}
+
+export interface PreviewSectionDef {
+  key: string;
+  label: string;
+}
+
+export function getDocTypeKey(data: CaseRecord | null | undefined): string {
   return data?.documentType || "case-law";
 }
 
-export function getCaseParties(data) {
+export function getCaseParties(data: CaseRecord | null | undefined): string {
   if (!data) return "";
 
   const directParties = cleanText(data.parties);
@@ -29,18 +39,18 @@ export function getCaseParties(data) {
   return plaintiff || defendant || "";
 }
 
-export function getFormattedCaseParties(data) {
+export function getFormattedCaseParties(data: CaseRecord | null | undefined): string {
   return getCaseParties(data).replace(/\s+VS\s+/gi, " vs ");
 }
 
-export function getCaseReference(data) {
+export function getCaseReference(data: CaseRecord | null | undefined): string {
   const explicitRef = cleanText(data?.caseRef);
   if (explicitRef) return explicitRef;
 
   return cleanText(data?.["Decision Type"]) || cleanText(data?.["Court Level"]) || "Case";
 }
 
-export function getResultTitle(data) {
+export function getResultTitle(data: CaseRecord | null | undefined): string {
   const docType = getDocTypeKey(data);
 
   if (docType === "case-law") {
@@ -54,15 +64,15 @@ export function getResultTitle(data) {
   return cleanText(data?.documentTitle) || cleanText(data?.companyName) || "Untitled document";
 }
 
-export function getDocumentLabel(data) {
+export function getDocumentLabel(data: CaseRecord | null | undefined): string {
   return getResultTitle(data);
 }
 
-export function getResultTypeLabel(data) {
+export function getResultTypeLabel(data: CaseRecord | null | undefined): string {
   return singularDocTypeLabel(getDocTypeKey(data));
 }
 
-export function getSourceLabel(data) {
+export function getSourceLabel(data: CaseRecord | null | undefined): string {
   const docType = getDocTypeKey(data);
 
   if (docType === "case-law") {
@@ -76,7 +86,7 @@ export function getSourceLabel(data) {
   return cleanText(data?.companyName) || cleanText(data?.Industry) || "Financial Statement";
 }
 
-export function getPrimaryDateText(data) {
+export function getPrimaryDateText(data: CaseRecord | null | undefined): string {
   const docType = getDocTypeKey(data);
 
   if (docType === "case-law") return cleanText(data?.["Decision Date"]) || "—";
@@ -92,7 +102,7 @@ export function getPrimaryDateText(data) {
   return cleanText(data?.["Reporting Period End Date"]) || "—";
 }
 
-export function getCompareDocumentHeading(doc) {
+export function getCompareDocumentHeading(doc: CaseRecord): DocumentHeading {
   const docType = getDocTypeKey(doc);
 
   if (docType === "case-law") {
@@ -110,12 +120,12 @@ export function getCompareDocumentHeading(doc) {
   }
 
   return {
-    eyebrow: doc["Contract Type"] || DOC_TYPE_LABELS[docType] || "Document",
+    eyebrow: doc["Contract Type"] || DOC_TYPE_LABELS[docType as DocumentType] || "Document",
     title: doc.documentTitle || doc["Contract Name"] || "Untitled",
   };
 }
 
-export function getPreviewSections(data) {
+export function getPreviewSections(data: CaseRecord | null | undefined): PreviewSectionDef[] {
   const docType = getDocTypeKey(data);
 
   if (docType === "financial-statement") {
@@ -150,6 +160,6 @@ export function getPreviewSections(data) {
   ];
 }
 
-export function getPluralDocTypeLabel(docType) {
-  return DOC_TYPE_LABELS[docType] || singularDocTypeLabel(docType);
+export function getPluralDocTypeLabel(docType: string): string {
+  return DOC_TYPE_LABELS[docType as DocumentType] || singularDocTypeLabel(docType);
 }

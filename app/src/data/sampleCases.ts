@@ -1,4 +1,43 @@
-export const SAMPLE_CASES = {
+export type DocumentType = 'case-law' | 'financial-statement' | 'contract';
+
+export interface ReportSection {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface FieldCategories {
+  [category: string]: string[];
+}
+
+export interface CaseRecord {
+  documentType?: DocumentType;
+  documentTitle?: string;
+  companyName?: string;
+  parties?: string;
+  caseRef?: string;
+  background?: string;
+  issues?: string;
+  findings?: string;
+  decision?: string;
+  legalPrinciples?: string;
+  passageText?: string;
+  effectiveDate?: string;
+  jurisdiction?: string;
+  paymentTerms?: string;
+  term?: string;
+  scopeOfWork?: string;
+  fees?: string;
+  companyIdentifiers?: string;
+  reportingStandards?: string;
+  consolidationLevel?: string;
+  presentationCurrency?: string;
+  units?: string;
+  roundingPolicy?: string;
+  [field: string]: string | undefined;
+}
+
+export const SAMPLE_CASES: Record<string, CaseRecord> = {
   'card-ct-1': {
     documentType: 'contract',
     documentTitle: 'Loan agreement (signed)',
@@ -121,7 +160,7 @@ export const SAMPLE_CASES = {
   },
 };
 
-export const REPORT_SECTIONS = [
+export const REPORT_SECTIONS: ReportSection[] = [
   { id: 'background',       label: 'Overview',          enabled: true },
   { id: 'issues',           label: 'Issues',            enabled: true },
   { id: 'findings',         label: 'Holdings',          enabled: true },
@@ -130,7 +169,7 @@ export const REPORT_SECTIONS = [
   { id: 'passageText',      label: 'Key Passage',       enabled: false },
 ];
 
-export const FIELD_CATEGORIES = {
+export const FIELD_CATEGORIES: FieldCategories = {
   'Case Info': ['Court','Court Level','Decision Date','Decision Type','Jurisdiction','Judge Name','Disposition','Prevailing Party'],
   'Parties': ['Plaintiff Name','Plaintiff Type','Plaintiff Law Firm','Plaintiff Lead Attorney','Defendant Name','Defendant Type','Defendant Law Firm','Defendant Lead Attorney'],
   'Outcome': ['Disposition','Dismissal Reason','Monetary Damages','Remedies','Previous Court','Previous Case Winner'],
@@ -140,7 +179,7 @@ export const FIELD_CATEGORIES = {
 
 /* ─── Schema registry: sections, fields & defaults per document type ── */
 
-export const REPORT_SECTIONS_BY_TYPE = {
+export const REPORT_SECTIONS_BY_TYPE: Record<string, ReportSection[]> = {
   'case-law': REPORT_SECTIONS,
   'financial-statement': [
     { id: 'companyIdentifiers',    label: 'Company Identifiers',    enabled: true },
@@ -161,7 +200,7 @@ export const REPORT_SECTIONS_BY_TYPE = {
   ],
 };
 
-export const FIELD_CATEGORIES_BY_TYPE = {
+export const FIELD_CATEGORIES_BY_TYPE: Record<string, FieldCategories> = {
   'case-law': FIELD_CATEGORIES,
   'financial-statement': {
     'Company': ['Statement Type', 'Industry', 'Country Or Region'],
@@ -175,13 +214,13 @@ export const FIELD_CATEGORIES_BY_TYPE = {
   },
 };
 
-export const DEFAULT_META_FIELDS_BY_TYPE = {
+export const DEFAULT_META_FIELDS_BY_TYPE: Record<string, string[]> = {
   'case-law': ['Court', 'Court Level', 'Decision Date', 'Decision Type', 'Disposition', 'Prevailing Party', 'Judge Name', 'Legal Topics', 'Monetary Damages'],
   'financial-statement': ['Statement Type', 'Reporting Period End Date', 'Industry', 'Revenue', 'Profit Or Loss', 'Auditor Opinion'],
   'contract': ['Contract Name', 'Contract Type', 'Contract Date', 'Parties', 'Governing Law', 'Contract Value', 'Currency'],
 };
 
-export const DOC_TYPE_LABELS = {
+export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   'case-law': 'Case Law',
   'financial-statement': 'Financial Statements',
   'contract': 'Contracts',

@@ -1,9 +1,9 @@
+import type { CaseRecord } from "../../data/sampleCases";
 import {
   LIST_FIELDS,
   LIST_FIELDS_FINANCIAL,
   LIST_FIELDS_CONTRACT,
 } from "./constants";
-import styles from "../ResultsPage.module.css";
 import {
   getDocTypeKey as getDocumentTypeKey,
   getResultTitle,
@@ -11,51 +11,38 @@ import {
   getSourceLabel,
 } from "../../data/documentUtils";
 
-const DEFAULT_FIELDS_BY_TYPE = {
+interface FieldItem {
+  name: string;
+  visible: boolean;
+}
+
+interface ResultListRowProps {
+  id: string;
+  data: CaseRecord;
+  isPreviewActive: boolean;
+  onPreviewSelect?: (id: string) => void;
+  onAddToReport: (id: string) => void;
+  addedToReport: boolean;
+  collectionFull: boolean;
+  customFields?: FieldItem[];
+  onEditCard?: (id: string) => void;
+  showEditButton?: boolean;
+}
+
+const DEFAULT_FIELDS_BY_TYPE: Record<string, string[]> = {
   "case-law": LIST_FIELDS,
   "financial-statement": LIST_FIELDS_FINANCIAL,
   contract: LIST_FIELDS_CONTRACT,
 };
 
-function _getDocTypeKey(data) {
-  return data.documentType || "case-law";
-}
-
-function getVisibleFields(docType, customFields) {
+function getVisibleFields(docType: string, customFields?: FieldItem[]): string[] {
   if (customFields) {
     return customFields.filter((field) => field.visible).map((field) => field.name);
   }
-
   return DEFAULT_FIELDS_BY_TYPE[docType] || LIST_FIELDS;
 }
 
-function _getTitleText(data, docType) {
-  if (docType === "case-law") {
-    return `${data.caseRef}: ${data.parties.split(" VS ").join(" vs ")}`;
-  }
-
-  return data.documentTitle;
-}
-
-function _getTypeLabel(docType) {
-  if (docType === "contract") return "Contract";
-  if (docType === "financial-statement") return "Financial Statement";
-  return "Case Law";
-}
-
-function _getSublineText(data, docType) {
-  if (docType === "case-law") {
-    return data["Court"] || data["Court Level"] || "Tax Appeals Tribunal";
-  }
-
-  if (docType === "contract") {
-    return data["Governing Law"] || "JibuDocs File Manager";
-  }
-
-  return data.companyName || data["Industry"] || "JibuDocs File Manager";
-}
-
-function getValueStyle(field, value) {
+function getValueStyle(field: string, value: string | undefined): React.CSSProperties | undefined {
   if (field === "Disposition") {
     if (value === "Dismissed") return { color: "#b91c1c", fontWeight: 600 };
     if (value === "Allowed") return { color: "#047857", fontWeight: 600 };
@@ -81,34 +68,44 @@ export default function ResultListRow({
   customFields,
   onEditCard,
   showEditButton = true,
-}) {
+}: ResultListRowProps) {
   const docType = getDocumentTypeKey(data);
   const hasCustomFields = customFields !== undefined;
   const visibleFields = getVisibleFields(docType, customFields);
-  const defaultFields = getVisibleFields(docType, null);
+  const defaultFields = getVisibleFields(docType);
   const metaFields = (hasCustomFields ? visibleFields : defaultFields).filter((field) => data[field]);
   const titleText = getResultTitle(data);
   const typeLabel = getResultTypeLabel(data);
   const sublineText = getSourceLabel(data);
 
+  const rowBase = "bg-white border border-slate-200 rounded-xl px-4 py-[14px] pb-3 cursor-pointer transition-[box-shadow,border-color] duration-150";
+  const rowHover = "hover:[box-shadow:inset_3px_0_0_#ca8a04,0_2px_8px_rgba(0,0,0,0.06)] hover:border-slate-300 focus-within:[box-shadow:inset_3px_0_0_#ca8a04,0_2px_8px_rgba(0,0,0,0.06)] focus-within:border-slate-300";
+  const rowActive = isPreviewActive ? "border-slate-300 [box-shadow:inset_3px_0_0_#ca8a04]" : "";
+  const rowSelected = addedToReport ? "border-yellow-600 [box-shadow:0_0_0_2px_rgba(202,138,4,0.15)]" : "";
+
   return (
     <div
-      className={`${styles.resultListRow} ${isPreviewActive ? styles.resultListRowActive : ""} ${addedToReport ? styles.resultListRowSelected : ""}`}
+      className={`${rowBase} ${rowHover} ${rowActive} ${rowSelected}`}
       onClick={() => onPreviewSelect?.(id)}
     >
-      <div className={styles.resultListTop}>
-        <div className={styles.resultListHeading}>
-          <h4 className={styles.resultListTitle}>{titleText}</h4>
-          <div className={styles.resultListSubline}>
-            <span className={styles.resultListTypeBadge}>{typeLabel}</span>
-            <span className={styles.resultListSource}>{sublineText}</span>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <h4 className="text-[14px] font-semibold text-slate-800 leading-[1.35] m-0">{titleText}</h4>
+          <div className="flex items-center gap-2 flex-wrap mt-[5px]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-amber-800 text-[11px] font-semibold">{typeLabel}</span>
+            <span className="text-xs text-slate-500">{sublineText}</span>
           </div>
         </div>
 
-        <div className={styles.resultListActions}>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Add button */}
           <button
             type="button"
-            className={`${styles.cardAddBtn} ${addedToReport ? styles.cardAddBtnActive : ""}`}
+            className={`text-[11px] font-semibold border rounded-[5px] px-[10px] py-1 cursor-pointer flex items-center gap-1 whitespace-nowrap transition-all duration-150 ${
+              addedToReport
+                ? "bg-slate-800 text-white border-slate-800 hover:bg-slate-700 hover:border-slate-700"
+                : "text-slate-600 bg-none border-slate-200 hover:border-yellow-600 hover:bg-yellow-50"
+            } disabled:opacity-35 disabled:cursor-not-allowed`}
             onClick={(event) => {
               event.stopPropagation();
               onAddToReport(id);
@@ -128,9 +125,10 @@ export default function ResultListRow({
               </>
             )}
           </button>
+          {/* Open button */}
           <button
             type="button"
-            className={styles.cardOpenBtn}
+            className="text-[11px] text-slate-600 bg-none border border-slate-200 rounded-[5px] px-[10px] py-1 cursor-pointer flex items-center gap-1 whitespace-nowrap transition-all duration-150 hover:border-yellow-600 hover:bg-yellow-50 [&_svg]:text-yellow-600"
             onClick={(event) => event.stopPropagation()}
           >
             Open
@@ -139,7 +137,7 @@ export default function ResultListRow({
           {showEditButton && (
             <button
               type="button"
-              className={styles.editCardBtn}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-none border border-slate-200 rounded-[5px] px-[10px] py-[3px] cursor-pointer whitespace-nowrap ml-auto transition-all duration-150 hover:border-yellow-600 hover:bg-yellow-50 [&_svg]:text-yellow-600"
               onClick={(event) => {
                 event.stopPropagation();
                 onEditCard?.(id);
@@ -153,11 +151,11 @@ export default function ResultListRow({
       </div>
 
       {metaFields.length > 0 && (
-        <div className={styles.resultListMetaGrid}>
+        <div className="grid gap-[10px_14px]" style={{ gridTemplateColumns: "repeat(5, minmax(120px, 1fr))" }}>
           {metaFields.map((field) => (
-            <div key={field} className={styles.resultListMetaItem}>
-              <span className={styles.fieldKey}>{field}</span>
-              <span className={styles.resultListMetaValue} style={getValueStyle(field, data[field])}>
+            <div key={field} className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-400">{field}</span>
+              <span className="text-xs text-slate-700 leading-[1.45]" style={getValueStyle(field, data[field])}>
                 {data[field]}
               </span>
             </div>
