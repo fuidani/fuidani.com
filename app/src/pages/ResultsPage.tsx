@@ -403,8 +403,8 @@ export default function ResultsPage() {
   const toggleSelectAllVisible = useCallback(() => {
     setCollectionIds((prev) => {
       const visibleIds = visibleCasesArray.map(([id]) => id);
-      const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
-      if (allVisibleSelected) {
+      const anyVisibleSelected = visibleIds.some((id) => prev.has(id));
+      if (anyVisibleSelected) {
         const next = new Set(prev);
         for (const id of visibleIds) next.delete(id);
         return next;
@@ -1049,14 +1049,15 @@ export default function ResultsPage() {
                       const visibleIds = visibleCasesArray.map(([id]) => id);
                       const allSelected = visibleIds.length > 0 && visibleIds.every((id) => collectionIds.has(id));
                       const someSelected = !allSelected && visibleIds.some((id) => collectionIds.has(id));
+                      const canDeselectVisible = allSelected || someSelected;
                       return (
                         <span key={h} className="min-w-0 px-3 py-[10px] flex items-center justify-center">
                           <button
                             type="button"
                             className="group w-6 h-6 p-0 border-none bg-transparent appearance-none inline-flex items-center justify-center flex-none shrink-0 cursor-pointer"
                             onClick={toggleSelectAllVisible}
-                            aria-label={allSelected ? "Deselect all visible" : "Select all visible"}
-                            title={allSelected ? "Deselect all visible" : "Select all visible"}
+                            aria-label={canDeselectVisible ? "Deselect all visible" : "Select all visible"}
+                            title={canDeselectVisible ? "Deselect all visible" : "Select all visible"}
                           >
                             <span
                               className={`w-[18px] h-[18px] box-border inline-flex items-center justify-center border transition-[color,background,border-color] duration-150 ${
