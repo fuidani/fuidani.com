@@ -42,6 +42,15 @@ export default function DocumentPreview({
         </div>
       )}
 
+      {includeComparisonAppendix && cases.length >= 2 && (
+        <ComparisonAppendix
+          cases={cases}
+          metaFields={metaFields}
+          sections={sections}
+          docTypeLabel={docTypeLabel}
+        />
+      )}
+
       {cases.map((c, idx) => {
         const caseTitle = getDocumentLabel(c);
         return (
@@ -83,15 +92,6 @@ export default function DocumentPreview({
         </div>
         );
       })}
-
-      {includeComparisonAppendix && (
-        <ComparisonAppendix
-          cases={cases}
-          metaFields={metaFields}
-          sections={sections}
-          docTypeLabel={docTypeLabel}
-        />
-      )}
 
       {reportInsights.length > 0 && (
         <section className={styles.insightsAppendix}>

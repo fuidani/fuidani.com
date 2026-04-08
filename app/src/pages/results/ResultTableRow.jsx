@@ -7,51 +7,6 @@ import {
   getSourceLabel,
 } from "../../data/documentUtils";
 
-function _getDateText(data, docType) {
-  if (docType === "case-law") return data["Decision Date"] || "—";
-  if (docType === "contract") return data["Contract Date"] || data["Signing Date"] || "—";
-  return data["Reporting Period End Date"] || "—";
-}
-
-function getKeyData(data, docType) {
-  if (docType === "case-law") {
-    return {
-      label: "Disposition",
-      value: data["Disposition"] || "—",
-      style:
-        data["Disposition"] === "Dismissed"
-          ? { color: "#b91c1c", fontWeight: 700 }
-          : data["Disposition"] === "Allowed"
-            ? { color: "#047857", fontWeight: 700 }
-            : undefined,
-    };
-  }
-
-  if (docType === "contract") {
-    const contractValue = data["Contract Value"];
-    return {
-      label: "Value",
-      value: contractValue ? `${data.Currency || ""}${data.Currency ? " " : ""}${contractValue}` : "—",
-    };
-  }
-
-  const profitOrLoss = data["Profit Or Loss"];
-  const revenue = data["Revenue"];
-  const useProfit = Boolean(profitOrLoss);
-  const numericValue = useProfit ? profitOrLoss : revenue;
-  const style = useProfit && numericValue !== "—"
-    ? parseFloat(String(numericValue).replace(/,/g, "")) >= 0
-      ? { color: "#047857", fontWeight: 700 }
-      : { color: "#b91c1c", fontWeight: 700 }
-    : undefined;
-
-  return {
-    label: useProfit ? "Profit / Loss" : "Revenue",
-    value: numericValue || "—",
-    style,
-  };
-}
-
 export default function ResultTableRow({
   id,
   data,
@@ -64,9 +19,8 @@ export default function ResultTableRow({
   const docType = getDocTypeKey(data);
   const titleText = getResultTitle(data);
   const typeLabel = getResultTypeLabel(data);
-  const sourceText = getSourceLabel(data);
+  const sourceText = docType === "case-law" ? "Kenya Law" : getSourceLabel(data);
   const dateText = getPrimaryDateText(data);
-  const keyData = getKeyData(data, docType);
 
   return (
     <div
@@ -82,20 +36,19 @@ export default function ResultTableRow({
             onAddToReport(id);
           }}
           disabled={!addedToReport && collectionFull}
-          aria-label={addedToReport ? "Remove from one-time export" : "Select for one-time export"}
-          title={addedToReport ? "Remove from one-time export" : "Select for one-time export"}
+          aria-label={addedToReport ? "Remove from report" : "Add to report"}
+          title={addedToReport ? "Remove from report" : "Add to report"}
         >
           {addedToReport ? (
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           ) : (
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
           )}
         </button>
       </div>
 
       <div className={`${styles.resultTableCell} ${styles.resultTableDocumentCell}`}>
         <span className={styles.resultTableDocumentTitle}>{titleText}</span>
-        <span className={styles.resultTableDocumentMeta}>{sourceText}</span>
       </div>
 
       <div className={styles.resultTableCell}>
@@ -103,14 +56,11 @@ export default function ResultTableRow({
       </div>
 
       <div className={styles.resultTableCell}>
-        <span className={styles.resultTableDate}>{dateText}</span>
+        <span className={styles.resultTableSource}>{sourceText}</span>
       </div>
 
-      <div className={`${styles.resultTableCell} ${styles.resultTableKeyCell}`}>
-        <span className={styles.resultTableKeyLabel}>{keyData.label}</span>
-        <span className={styles.resultTableKeyValue} style={keyData.style}>
-          {keyData.value}
-        </span>
+      <div className={styles.resultTableCell}>
+        <span className={styles.resultTableDate}>{dateText}</span>
       </div>
 
       <div className={`${styles.resultTableCell} ${styles.resultTableActionsCell}`}>

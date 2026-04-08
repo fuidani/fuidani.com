@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   REPORT_SECTIONS,
@@ -14,7 +14,7 @@ import darkLogo from "../assets/Dark_Logo_JibuDocs_Icon.png";
 import styles from "./ReportPage.module.css";
 import ToggleSwitch from "../components/ToggleSwitch";
 import DocumentPreview from "./report/DocumentPreview";
-import ComparisonMatrix from "./report/ComparisonMatrix";
+import ReportAIChat from "./report/ReportAIChat";
 
 const DEFAULT_META_FIELDS = DEFAULT_META_FIELDS_BY_TYPE['case-law'];
 
@@ -68,15 +68,6 @@ export default function ReportPage() {
     }
   }, []);
 
-  const initialMode = useMemo(() => {
-    try {
-      const mode = sessionStorage.getItem("reportMode");
-      sessionStorage.removeItem("reportMode");
-      return mode === "compare" ? "compare" : "report";
-    } catch {
-      return "report";
-    }
-  }, []);
 
   const docTypeLabel = DOC_TYPE_LABELS[docType] || "Documents";
   const typeSections = REPORT_SECTIONS_BY_TYPE[docType] || REPORT_SECTIONS;
@@ -93,8 +84,8 @@ export default function ReportPage() {
 
   // Report config state
   const [reportStep, setReportStep] = useState(1);
-  const [viewTab, setViewTab] = useState(initialMode);
-  const [includeComparisonAppendix, setIncludeComparisonAppendix] = useState(initialMode === "compare");
+  const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
+  const [includeComparisonAppendix, setIncludeComparisonAppendix] = useState(true);
   const [reportInsights, setReportInsights] = useState([]);
   const addInsightToReport = (insight) => {
     setReportInsights((prev) => [...prev, { ...insight, id: Date.now() }]);
@@ -150,18 +141,6 @@ export default function ReportPage() {
     [availableMetaFieldSet, selectedMetaFields]
   );
 
-  const openCompareView = () => {
-    if (!canCompareInCurrentMode) return;
-    setViewTab("compare");
-  };
-
-  const openCompareFromExport = () => {
-    setReportStep(1);
-    if (canCompareInCurrentMode) {
-      openCompareView();
-    }
-  };
-
   const availableToAdd = useMemo(
     () => caseEntries.filter((c) => !includedCaseIds.has(c.id)),
     [caseEntries, includedCaseIds]
@@ -185,14 +164,72 @@ export default function ReportPage() {
   };
 
   // Delivery state
-  const [deliveryMode, setDeliveryMode] = useState(isSelectionSource ? "one-off" : "subscription");
-  const [subscriptionFrequency, setSubscriptionFrequency] = useState("weekly");
+  const [schedule, setSchedule] = useState(isSelectionSource ? "one-off" : "weekly");
+  const deliveryMode = schedule === "one-off" ? "one-off" : "subscription";
+  const subscriptionFrequency = schedule === "monthly" ? "monthly" : "weekly";
   const [deliveryMethod, setDeliveryMethod] = useState("folder");
   const canCompare = includedCases.length >= 2;
   const isSubscriptionDelivery = canSubscribe && deliveryMode === "subscription";
   const canCompareInCurrentMode = canCompare && !isSubscriptionDelivery;
   const shouldIncludeComparisonAppendix = includeComparisonAppendix && canCompareInCurrentMode;
-  const activeViewTab = canCompareInCurrentMode ? viewTab : "report";
+  const [aiChatOpen, setAiChatOpen] = useState(true);
+
+  // AI chat panel resize
+  const AI_CHAT_DEFAULT = 340;
+  const AI_CHAT_MIN = 280;
+  const AI_CHAT_MAX = 600;
+  const [aiChatWidth, setAiChatWidth] = useState(AI_CHAT_DEFAULT);
+  const [isAiResizing, setIsAiResizing] = useState(false);
+  const aiResizeRef = useRef({ active: false, startX: 0, startWidth: 0 });
+  const configLayoutRef = useRef(null);
+
+  const clampAiWidth = useCallback(
+    (w) => Math.max(AI_CHAT_MIN, Math.min(AI_CHAT_MAX, w)),
+    []
+  );
+
+  const handleAiResizeStart = useCallback((e) => {
+    e.preventDefault();
+    aiResizeRef.current = { active: true, startX: e.clientX, startWidth: aiChatWidth };
+    setIsAiResizing(true);
+  }, [aiChatWidth]);
+
+  const handleAiResizeKeyDown = useCallback((e) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); setAiChatWidth((w) => clampAiWidth(w + 24)); }
+    if (e.key === "ArrowRight") { e.preventDefault(); setAiChatWidth((w) => clampAiWidth(w - 24)); }
+    if (e.key === "Home") { e.preventDefault(); setAiChatWidth(AI_CHAT_MIN); }
+    if (e.key === "End") { e.preventDefault(); setAiChatWidth(AI_CHAT_MAX); }
+  }, [clampAiWidth]);
+
+  const handleAiResizeReset = useCallback(() => {
+    setAiChatWidth(AI_CHAT_DEFAULT);
+  }, []);
+
+  useEffect(() => {
+    if (!isAiResizing) return undefined;
+    const onMove = (e) => {
+      if (!aiResizeRef.current.active) return;
+      const delta = aiResizeRef.current.startX - e.clientX;
+      setAiChatWidth(clampAiWidth(aiResizeRef.current.startWidth + delta));
+    };
+    const onUp = () => {
+      aiResizeRef.current.active = false;
+      setIsAiResizing(false);
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [isAiResizing, clampAiWidth]);
+
   const sourceContextLabel = isSelectionSource
     ? "One-time export"
     : isSubscriptionDelivery
@@ -214,32 +251,23 @@ export default function ReportPage() {
   const sourceNote = isSubscriptionDelivery
     ? `This report will automatically include up to ${MAX_REPORT_DOCS} of the most recent documents matching your search filters each time it is generated.`
     : "This one-off snapshot uses the current search sample shown in the preview.";
-  const sourceCompareHintTitle = isSubscriptionDelivery ? "Comparison unavailable" : "Comparison available";
+  const sourceCompareHintTitle = isSubscriptionDelivery ? "Overview unavailable" : "Overview available";
   const sourceCompareHintText = isSubscriptionDelivery
-    ? "Switch delivery mode to One-off Snapshot in Save & Export if you want to compare the current documents."
-    : `You can export the report and append a side-by-side comparison of the ${includedCases.length} included documents.`;
-  const comparisonHelperText = !canCompare
-    ? "Select at least 2 documents to unlock comparison in the builder."
+    ? "Switch delivery mode to One-off Snapshot in Save & Export if you want an overview summary of the current documents."
+    : `The report preview includes an overview summary of the ${includedCases.length} included documents.`;
+  const overviewHelperText = !canCompare
+    ? "Select at least 2 documents to enable the overview summary."
     : isSubscriptionDelivery
-      ? "Comparison is available only for one-off snapshots. Switch delivery mode in Save & Export if you want to compare the current documents."
-      : "The exported report can end with a comparison appendix based on the metadata fields and narrative sections you enabled.";
-  const comparisonEmptyText = !canCompare
-    ? "Comparison becomes available once two documents are included."
-    : "Comparison is turned off while this report is set to Subscription.";
-  const compareTabTitle = !canCompare
-    ? "Select at least 2 documents to compare"
-    : isSubscriptionDelivery
-      ? "Comparison is available only for one-off snapshots"
-      : undefined;
+      ? "Overview summary is available only for one-off snapshots. Switch delivery mode in Save & Export to include it."
+      : "The overview summary cross-references the metadata fields and narrative sections you enabled across all included documents.";
+  const overviewEmptyText = !canCompare
+    ? "Overview summary becomes available once two documents are included."
+    : "Overview summary is turned off while this report is set to Subscription.";
   const searchPreviewTitle = isSubscriptionDelivery ? "Subscription Preview" : "Snapshot Preview";
   const searchPreviewDescription = isSubscriptionDelivery
     ? `Showing a sample of current results. Each report cycle will auto-select up to ${MAX_REPORT_DOCS} most recent matching documents.`
     : "Showing the current search sample for this one-off snapshot.";
 
-  const selectDeliveryMode = (mode) => {
-    if (mode === "subscription" && !canSubscribe) return;
-    setDeliveryMode(mode);
-  };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -321,7 +349,7 @@ export default function ReportPage() {
           onClick={() => setReportStep(2)}
         >
           <span className={styles.roStepNum}>2</span>
-          <span className={styles.roStepLabel}>Save &amp; Export</span>
+          <span className={styles.roStepLabel}>{isSelectionSource ? "Save & Export" : "Set Up Schedule"}</span>
         </div>
         <div className={styles.stepperActions}>
           <button
@@ -341,7 +369,9 @@ export default function ReportPage() {
               }
             }}
           >
-            {reportStep === 1 ? "Save & Export →" : "Done"}
+            {reportStep === 1
+              ? (isSelectionSource ? "Save & Export →" : "Set Up Schedule →")
+              : "Done"}
           </button>
         </div>
       </div>
@@ -444,7 +474,7 @@ export default function ReportPage() {
                 {/* Report Sections */}
                 <div className={`${styles.configSection} ${styles.reportSectionsSection}`}>
                   <button className={styles.accordionHeader} onClick={() => toggleAccordion("sections")}>
-                    <span className={styles.csNum}>C</span> Report Sections
+                    <span className={styles.csNum}>D</span> Report Sections
                     <svg className={`${styles.accordionChevron} ${openAccordion === "sections" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   <div className={`${styles.accordionBody} ${openAccordion === "sections" ? styles.accordionBodyOpen : ""}`}>
@@ -473,34 +503,29 @@ export default function ReportPage() {
                 {/* Metadata Fields */}
                 <div className={`${styles.configSection} ${styles.metadataFieldsSection}`}>
                   <button className={styles.accordionHeader} onClick={() => toggleAccordion("metadata")}>
-                    <span className={styles.csNum}>B</span> Metadata Fields
+                    <span className={styles.csNum}>C</span> Metadata Fields
                     <svg className={`${styles.accordionChevron} ${openAccordion === "metadata" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   <div className={`${styles.accordionBody} ${openAccordion === "metadata" ? styles.accordionBodyOpen : ""}`}>
                     <div className={styles.accordionInner}>
                       <p className={styles.configHint}>Choose which fields appear on each case.</p>
                       {visibleFieldCategories.length > 0 ? (
-                        visibleFieldCategories.map(([cat, fields]) => (
-                          <div key={cat}>
-                            <div className={styles.fieldCategory}>{cat}</div>
-                            <div className={styles.fieldPillList}>
-                              {fields.map((f) => {
-                                const selected = activeSelectedMetaFields.includes(f);
-                                return (
-                                  <button
-                                    type="button"
-                                    key={f}
-                                    className={`${styles.fieldPill} ${selected ? styles.fieldPillSelected : ""}`}
-                                    aria-pressed={selected}
-                                    onClick={() => toggleMetaField(f)}
-                                  >
-                                    {f}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))
+                        <div className={styles.fieldPillList}>
+                          {visibleFieldCategories.flatMap(([, fields]) => fields).map((f) => {
+                            const selected = activeSelectedMetaFields.includes(f);
+                            return (
+                              <button
+                                type="button"
+                                key={f}
+                                className={`${styles.fieldPill} ${selected ? styles.fieldPillSelected : ""}`}
+                                aria-pressed={selected}
+                                onClick={() => toggleMetaField(f)}
+                              >
+                                {f}
+                              </button>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <div className={styles.fieldEmptyState}>
                           No metadata fields are available for the currently selected documents.
@@ -512,20 +537,20 @@ export default function ReportPage() {
 
                 <div className={`${styles.configSection} ${styles.comparisonAppendixSection}`}>
                   <button className={styles.accordionHeader} onClick={() => toggleAccordion("compare")}>
-                    <span className={styles.csNum}>D</span> Compare Documents
+                    <span className={styles.csNum}>B</span> Overview Summary
                     <svg className={`${styles.accordionChevron} ${openAccordion === "compare" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   <div className={`${styles.accordionBody} ${openAccordion === "compare" ? styles.accordionBodyOpen : ""}`}>
                     <div className={styles.accordionInner}>
                       <p className={styles.configHint}>
-                        Add a side-by-side comparison to the end of the exported report when 2 or more documents are included.
+                        Include an overview summary in the exported report that cross-references metadata across all included documents.
                       </p>
                       <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
                         <div className={styles.compareConfigTop}>
                           <div>
-                            <div className={styles.compareConfigTitle}>Add comparison to export</div>
+                            <div className={styles.compareConfigTitle}>Include overview in export</div>
                             <div className={styles.compareConfigText}>
-                              {comparisonHelperText}
+                              {overviewHelperText}
                             </div>
                           </div>
                           <ToggleSwitch
@@ -545,16 +570,10 @@ export default function ReportPage() {
                             >
                               {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
                             </span>
-                            <button
-                              className={styles.comparePreviewBtn}
-                              onClick={openCompareView}
-                            >
-                              Open compare preview
-                            </button>
                           </div>
                         ) : (
                           <div className={styles.compareConfigEmpty}>
-                            {comparisonEmptyText}
+                            {overviewEmptyText}
                           </div>
                         )}
                       </div>
@@ -562,88 +581,67 @@ export default function ReportPage() {
                   </div>
                 </div>
 
-                {/* Documents */}
-                {isSelectionSource && <div className={`${styles.configSection} ${styles.selectedDocumentsSection}`}>
-                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("documents")}>
-                    <span className={styles.csNum}>E</span> Selected Documents ({includedCases.length}/{MAX_REPORT_DOCS})
-                    <svg className={`${styles.accordionChevron} ${openAccordion === "documents" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <div className={`${styles.configSection} ${styles.aiAnalysisSection}`}>
+                  <button className={styles.accordionHeader} onClick={() => toggleAccordion("ai")}>
+                    <span className={styles.csNum}>E</span> AI Analysis
+                    <svg className={`${styles.accordionChevron} ${openAccordion === "ai" ? styles.accordionChevronOpen : ""}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
-                  <div className={`${styles.accordionBody} ${openAccordion === "documents" ? styles.accordionBodyOpen : ""}`}>
+                  <div className={`${styles.accordionBody} ${openAccordion === "ai" ? styles.accordionBodyOpen : ""}`}>
                     <div className={styles.accordionInner}>
                       <p className={styles.configHint}>
-                        Use the Remove button on the preview to exclude documents from this one-time export.
+                        Ask questions about the included documents, compare their content, and add AI-generated insights to your report.
                       </p>
-                      {availableToAdd.length > 0 && (
-                        <>
-                          <div className={styles.caseListHeader}>Removed — click to re-add</div>
-                          <div className={styles.caseCheckList}>
-                            {availableToAdd.map((c) => {
-                              const label = getDocumentLabel(c);
-                              return (
-                                <div key={c.id} className={`${styles.caseCheckItem} ${styles.caseCheckItemAvailable}`}>
-                                  <span className={styles.caseCheckLabel}>{label}</span>
-                                  <button className={styles.caseAddBtn} onClick={() => addCase(c.id)} title="Add back to report">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>}
-              </div>
-            </div>
-
-            {/* Right: Live preview */}
-            <div className={styles.configRight}>
-              <div className={styles.viewTabBar}>
-                <button
-                  className={`${styles.viewTab} ${activeViewTab === "report" ? styles.viewTabActive : ""}`}
-                  onClick={() => setViewTab("report")}
-                >
-                  Report Preview
-                </button>
-                <button
-                  className={`${styles.viewTab} ${activeViewTab === "compare" ? styles.viewTabActive : ""}`}
-                  onClick={openCompareView}
-                  disabled={!canCompareInCurrentMode}
-                  title={compareTabTitle}
-                >
-                  Compare Documents
-                </button>
-              </div>
-
-              {activeViewTab === "report" ? (
-                <div className={styles.previewCanvas}>
-                  {canCompareInCurrentMode && (
-                    <div
-                      className={`${styles.comparePreviewNotice} ${
-                        shouldIncludeComparisonAppendix ? styles.comparePreviewNoticeActive : ""
-                      }`}
-                    >
-                      <div>
-                        <div className={styles.comparePreviewNoticeTitle}>
-                          {shouldIncludeComparisonAppendix
-                            ? "This export will include a comparison appendix."
-                            : "This report can also include a comparison appendix."}
+                      <div className={styles.aiAnalysisCard}>
+                        <div className={styles.aiAnalysisCardIcon}>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ca8a04" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" /></svg>
                         </div>
-                        <div className={styles.comparePreviewNoticeText}>
-                          {shouldIncludeComparisonAppendix
-                            ? "The exported report will end with a side-by-side comparison of the included documents."
-                            : "Turn it on from the left panel if you want the report to end with a side-by-side comparison section."}
+                        <div>
+                          <div className={styles.aiAnalysisCardTitle}>
+                            {aiChatOpen ? "Chat panel is open" : "Chat with your documents"}
+                          </div>
+                          <div className={styles.aiAnalysisCardDesc}>
+                            {includedCases.length < 1
+                              ? "Include at least one document to start chatting."
+                              : aiChatOpen
+                                ? "The AI chat panel is visible on the right. Ask questions about your documents."
+                                : `Explore and analyse ${includedCases.length} document${includedCases.length !== 1 ? "s" : ""} with AI assistance.`}
+                          </div>
                         </div>
                       </div>
                       <button
-                        className={styles.comparePreviewNoticeBtn}
-                        onClick={openCompareView}
+                        className={styles.aiAnalysisToggleBtn}
+                        onClick={() => setAiChatOpen((v) => !v)}
+                        disabled={includedCases.length < 1}
                       >
-                        Open compare preview
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" /></svg>
+                        {aiChatOpen ? "Close chat panel" : "Open chat panel"}
                       </button>
+                      {reportInsights.length > 0 && (
+                        <div className={styles.aiAnalysisInsightCount}>
+                          {reportInsights.length} insight{reportInsights.length !== 1 ? "s" : ""} added to report
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Center: Live preview */}
+            <div className={styles.configRight}>
+              {includedCases.length > 0 && !aiChatOpen && (
+                <div className={styles.aiFloatingToggleWrap}>
+                  <button
+                    className={styles.aiFloatingToggle}
+                    onClick={() => setAiChatOpen(true)}
+                    title="Open AI chat"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" /></svg>
+                    <span className={styles.aiFloatingLabel}>AI Chat</span>
+                  </button>
+                </div>
+              )}
+              <div className={styles.previewCanvas}>
                   {!isSelectionSource && (
                     <div className={styles.subscriptionPreviewBanner}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -652,21 +650,6 @@ export default function ReportPage() {
                         <div className={styles.subscriptionBannerDesc}>
                           {searchPreviewDescription}
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  {isSelectionSource && (
-                    <div className={styles.previewSourceBar}>
-                      <div className={styles.previewSourceTop}>
-                        <div className={styles.sourceBarLabel}>Selected Documents</div>
-                        <span className={`${styles.sourceBadge} ${styles.sourceBadgeSelection}`}>
-                          One-time export
-                        </span>
-                      </div>
-                      <div className={styles.sourceBarMain}>
-                        <span className={styles.sourceBarTitle}>{sourceLabel}</span>
-                        <span className={styles.sourceBarDot}>•</span>
-                        <span className={styles.sourceBarMeta}>{docTypeLabel}</span>
                       </div>
                     </div>
                   )}
@@ -683,24 +666,73 @@ export default function ReportPage() {
                     reportInsights={reportInsights}
                     onRemoveInsight={removeInsightFromReport}
                   />
-                </div>
-              ) : (
-                <div className={styles.previewCanvas}>
-                  <ComparisonMatrix
+              </div>
+            </div>
+
+            {/* Right: AI Chat Panel */}
+            {aiChatOpen && includedCases.length > 0 && (
+              <>
+                <div
+                  className={`${styles.aiResizer} ${isAiResizing ? styles.aiResizerActive : ""}`}
+                  role="separator"
+                  aria-label="Resize AI chat panel"
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  onPointerDown={handleAiResizeStart}
+                  onKeyDown={handleAiResizeKeyDown}
+                  onDoubleClick={handleAiResizeReset}
+                />
+                <div className={styles.configAI} style={{ width: `${aiChatWidth}px` }}>
+                  <ReportAIChat
                     cases={includedCases}
-                    metaFields={activeSelectedMetaFields}
                     sections={sections}
-                    docTypeLabel={docTypeLabel}
-                    includeInExport={shouldIncludeComparisonAppendix}
-                    onToggleInclude={() => setIncludeComparisonAppendix((prev) => !prev)}
                     onAddToReport={addInsightToReport}
+                    onClose={() => setAiChatOpen(false)}
                   />
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         ) : (
           /* ── Step 2: Save & Export ── */
+          subscriptionSuccess ? (
+          <div className={styles.successPage}>
+            <div className={styles.successCard}>
+              <div className={styles.successIcon}>
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="9 12 11.5 14.5 16 9.5" />
+                </svg>
+              </div>
+              <h2 className={styles.successTitle}>Subscription Created</h2>
+              <p className={styles.successText}>
+                Your {subscriptionFrequency} report has been set up successfully.
+                {deliveryMethod === "email"
+                  ? " You should receive the first report at your registered email address shortly."
+                  : " The first report will be saved to your JibuDocs folder shortly."}
+              </p>
+              <div className={styles.successDetails}>
+                <div className={styles.successDetailRow}>
+                  <span className={styles.successDetailLabel}>Report</span>
+                  <span className={styles.successDetailValue}>{reportTitle}</span>
+                </div>
+                <div className={styles.successDetailRow}>
+                  <span className={styles.successDetailLabel}>Frequency</span>
+                  <span className={styles.successDetailValue}>{subscriptionFrequency === "weekly" ? "Every Monday" : "1st of each month"}</span>
+                </div>
+                <div className={styles.successDetailRow}>
+                  <span className={styles.successDetailLabel}>Delivery</span>
+                  <span className={styles.successDetailValue}>{deliveryMethod === "email" ? "Email" : "JibuDocs folder"}</span>
+                </div>
+              </div>
+              <div className={styles.successActions}>
+                <button className={styles.successBackBtn} onClick={() => navigate("/results")}>
+                  Back to Results
+                </button>
+              </div>
+            </div>
+          </div>
+          ) : (
           <div className={styles.deliveryLayout}>
             <div className={styles.deliveryPanel}>
               <div className={styles.deliveryCard}>
@@ -710,110 +742,25 @@ export default function ReportPage() {
                 <p className={styles.deliveryCardHint}>
                   {isSelectionSource
                     ? `Export your ${includedCases.length} selected document${includedCases.length !== 1 ? "s" : ""} as a one-time report.`
-                    : "Choose whether to receive this report once or on a recurring schedule."}
+                    : "How often should JibuDocs generate this report?"}
                 </p>
-                {shouldIncludeComparisonAppendix && (
-                  <div className={styles.deliveryConstraint}>
-                    This export will include a comparison appendix after the included documents.
-                  </div>
-                )}
                 {canSubscribe ? (
-                  <div className={styles.deliveryOptions}>
-                    <label className={`${styles.deliveryOption} ${deliveryMode === "subscription" ? styles.deliveryOptionSelected : ""}`}>
-                      <input type="radio" name="deliveryMode" value="subscription" checked={deliveryMode === "subscription"} onChange={() => selectDeliveryMode("subscription")} className={styles.deliveryRadio} />
-                      <div className={styles.deliveryOptionContent}>
-                        <div className={styles.deliveryOptionIcon}>
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        </div>
-                        <div>
-                          <div className={styles.deliveryOptionLabel}>Subscription</div>
-                          <div className={styles.deliveryOptionDesc}>Automatically rerun this search and receive updated reports on a schedule</div>
-                        </div>
-                      </div>
-                    </label>
-                    <label className={`${styles.deliveryOption} ${deliveryMode === "one-off" ? styles.deliveryOptionSelected : ""}`}>
-                      <input type="radio" name="deliveryMode" value="one-off" checked={deliveryMode === "one-off"} onChange={() => selectDeliveryMode("one-off")} className={styles.deliveryRadio} />
-                      <div className={styles.deliveryOptionContent}>
-                        <div className={styles.deliveryOptionIcon}>
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        </div>
-                        <div>
-                          <div className={styles.deliveryOptionLabel}>One-off Snapshot</div>
-                          <div className={styles.deliveryOptionDesc}>Download a one-time snapshot with the current {includedCases.length} document{includedCases.length !== 1 ? "s" : ""}</div>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-
-              {canCompare && (
-                <div className={styles.deliveryCard}>
-                  <div className={styles.deliveryCardTitle}>Comparison Appendix</div>
-                  <p className={styles.deliveryCardHint}>
-                    {isSubscriptionDelivery
-                      ? "Comparison is available only for one-off snapshots."
-                      : "Decide whether the exported report should end with a side-by-side comparison of the included documents."}
-                  </p>
-                  <div className={`${styles.compareConfigCard} ${!canCompareInCurrentMode ? styles.compareConfigCardDisabled : ""}`}>
-                    <div className={styles.compareConfigTop}>
-                      <div>
-                        <div className={styles.compareConfigTitle}>Add comparison to export</div>
-                        <div className={styles.compareConfigText}>
-                          {isSubscriptionDelivery
-                            ? "Switch delivery mode to One-off Snapshot if you want to include a comparison appendix for the current documents."
-                            : "This uses the metadata fields and narrative sections currently enabled in the builder."}
-                        </div>
-                      </div>
-                      <ToggleSwitch
-                        checked={shouldIncludeComparisonAppendix}
-                        onChange={() => setIncludeComparisonAppendix((prev) => !prev)}
-                        disabled={!canCompareInCurrentMode}
-                      />
-                    </div>
-                    {canCompareInCurrentMode ? (
-                      <div className={styles.compareConfigFooter}>
-                        <span
-                          className={`${styles.compareConfigBadge} ${
-                            shouldIncludeComparisonAppendix
-                              ? styles.compareConfigBadgeActive
-                              : styles.compareConfigBadgeInactive
-                          }`}
-                        >
-                          {shouldIncludeComparisonAppendix ? "Will be exported" : "Not in export"}
-                        </span>
-                        <button
-                          className={styles.comparePreviewBtn}
-                          onClick={openCompareFromExport}
-                        >
-                          Review compare view
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={styles.compareConfigEmpty}>
-                        Comparison is disabled for recurring subscriptions.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {canSubscribe && deliveryMode === "subscription" && (
-                <div className={styles.deliveryCard}>
-                  <div className={styles.deliveryCardTitle}>Update Frequency</div>
-                  <p className={styles.deliveryCardHint}>How often should JibuDocs regenerate this report with new documents?</p>
                   <div className={styles.frequencyOptions}>
-                    <button className={`${styles.frequencyBtn} ${subscriptionFrequency === "weekly" ? styles.frequencyBtnSelected : ""}`} onClick={() => setSubscriptionFrequency("weekly")}>
+                    <button className={`${styles.frequencyBtn} ${schedule === "weekly" ? styles.frequencyBtnSelected : ""}`} onClick={() => setSchedule("weekly")}>
                       <span className={styles.frequencyLabel}>Weekly</span>
                       <span className={styles.frequencyDesc}>Every Monday</span>
                     </button>
-                    <button className={`${styles.frequencyBtn} ${subscriptionFrequency === "monthly" ? styles.frequencyBtnSelected : ""}`} onClick={() => setSubscriptionFrequency("monthly")}>
+                    <button className={`${styles.frequencyBtn} ${schedule === "monthly" ? styles.frequencyBtnSelected : ""}`} onClick={() => setSchedule("monthly")}>
                       <span className={styles.frequencyLabel}>Monthly</span>
                       <span className={styles.frequencyDesc}>1st of each month</span>
                     </button>
+                    <button className={`${styles.frequencyBtn} ${schedule === "one-off" ? styles.frequencyBtnSelected : ""}`} onClick={() => setSchedule("one-off")}>
+                      <span className={styles.frequencyLabel}>One-off</span>
+                      <span className={styles.frequencyDesc}>Single snapshot</span>
+                    </button>
                   </div>
-                </div>
-              )}
+                ) : null}
+              </div>
 
               {canSubscribe && deliveryMode === "subscription" && (
                 <div className={styles.deliveryCard}>
@@ -886,10 +833,10 @@ export default function ReportPage() {
                 {canSubscribe && deliveryMode === "subscription" && (
                   <button
                     className={styles.subscribeBtn}
-                    onClick={() => alert("In production, this creates a subscription via the JibuDocs API.")}
+                    onClick={() => setSubscriptionSuccess(true)}
                   >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Subscribe — {subscriptionFrequency === "weekly" ? "Weekly" : "Monthly"}
+                    Subscribe {subscriptionFrequency === "weekly" ? "Weekly" : "Monthly"}
                   </button>
                 )}
               </div>
@@ -908,8 +855,10 @@ export default function ReportPage() {
               />
             </div>
           </div>
+          )
         )}
       </div>
+
     </div>
   );
 }

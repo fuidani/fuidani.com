@@ -1,6 +1,6 @@
 /* ─── Filter definitions ────────────────────────────────── */
 
-export const FILTER_DEFS = [
+export const PRIMARY_FILTER_DEFS = [
   { key: "documentType", label: "Document Type", field: "documentType", defaultOpen: true, fallback: "case-law",
     displayLabel: { "case-law": "Case Law", "financial-statement": "Financial Statement", "contract": "Contract" } },
   { key: "courtLevel",   label: "Court Level",   field: "Court Level",  defaultOpen: true },
@@ -11,6 +11,19 @@ export const FILTER_DEFS = [
   { key: "sector",       label: "Sector",         field: "Sector",       defaultOpen: false, splitPattern: /\s*;\s*/ },
   { key: "decisionYear", label: "Decision Year", field: "Decision Date", defaultOpen: false, extract: (v) => v?.match(/\d{4}/)?.[0] },
 ];
+
+export const EXTRA_FILTER_DEFS = [
+  { key: "judgeName",      label: "Judge Name",       field: "Judge Name",       defaultOpen: false },
+  { key: "jurisdiction",   label: "Jurisdiction",     field: "Jurisdiction",     defaultOpen: false },
+  { key: "plaintiffName",  label: "Plaintiff Name",   field: "Plaintiff Name",   defaultOpen: false },
+  { key: "defendantName",  label: "Defendant Name",   field: "Defendant Name",   defaultOpen: false },
+  { key: "citedStatute",   label: "Cited Statute",    field: "Cited Statute",    defaultOpen: false, splitPattern: /\s*;\s*/ },
+  { key: "precedentName",  label: "Precedent Name",   field: "Precedent Name",   defaultOpen: false },
+  { key: "decisionType",   label: "Decision Type",    field: "Decision Type",    defaultOpen: false },
+  { key: "legalPrinciples",label: "Legal Principles",  field: "legalPrinciples",  defaultOpen: false, splitPattern: /\s*;\s*/ },
+];
+
+export const FILTER_DEFS = [...PRIMARY_FILTER_DEFS, ...EXTRA_FILTER_DEFS];
 
 export function getFilterOptionLabels(def, item) {
   const raw = item[def.field] || def.fallback;

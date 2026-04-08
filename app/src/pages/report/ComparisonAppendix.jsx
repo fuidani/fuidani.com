@@ -1,16 +1,25 @@
+import { useState } from "react";
 import { getDocumentLabel, getComparisonRows } from "./utils";
 import styles from "../ReportPage.module.css";
 
 export default function ComparisonAppendix({ cases, metaFields, sections, docTypeLabel }) {
+  const [hiddenFields, setHiddenFields] = useState(new Set());
+
   if (cases.length < 2) return null;
 
   const {
-    metadataRows,
-    differingMetadataCount,
-    sharedMetadataCount,
+    metadataRows: allMetadataRows,
   } = getComparisonRows(cases, metaFields, sections);
 
-  if (metadataRows.length === 0) return null;
+  if (allMetadataRows.length === 0) return null;
+
+  const metadataRows = allMetadataRows.filter((r) => !hiddenFields.has(r.label));
+  const differingMetadataCount = metadataRows.filter((r) => r.isDifferent).length;
+  const sharedMetadataCount = metadataRows.filter((r) => !r.isDifferent).length;
+  const hiddenCount = hiddenFields.size;
+
+  const hideField = (label) => setHiddenFields((prev) => new Set(prev).add(label));
+  const restoreAllFields = () => setHiddenFields(new Set());
 
   const useTransposed = cases.length > 3;
 
@@ -36,12 +45,12 @@ export default function ComparisonAppendix({ cases, metaFields, sections, docTyp
   return (
     <section className={styles.compareAppendix}>
       <div className={styles.compareAppendixHeader}>
-        <div className={styles.compareAppendixEyebrow}>Appendix</div>
-        <div className={styles.compareAppendixTitle}>Comparison Summary</div>
+        <div className={styles.compareAppendixEyebrow}>Overview</div>
+        <div className={styles.compareAppendixTitle}>Overview Summary</div>
         <p className={styles.compareAppendixIntro}>
           {useTransposed
             ? `Cross-reference of ${cases.length} ${docTypeLabel.toLowerCase()} documents across ${metadataRows.length} metadata fields.`
-            : `Side-by-side comparison of the selected ${docTypeLabel.toLowerCase()} documents.`}
+            : `Overview of the selected ${docTypeLabel.toLowerCase()} documents across ${metadataRows.length} metadata fields.`}
         </p>
       </div>
 
@@ -60,27 +69,20 @@ export default function ComparisonAppendix({ cases, metaFields, sections, docTyp
         </div>
       </div>
 
-      {differenceSummaries.length > 0 && useTransposed && (
-        <div className={styles.compareAppendixBlock}>
-          <div className={styles.compareAppendixBlockTitle}>Key differences</div>
-          <div className={styles.diffSummaryGrid}>
-            {differenceSummaries.map((item) => (
-              <div key={item.label} className={styles.diffSummaryCard}>
-                <div className={styles.diffSummaryField}>{item.label}</div>
-                <div className={styles.diffSummaryValues}>
-                  {item.groups.map((g, i) => (
-                    <span key={i} className={styles.diffSummaryChip}>{g}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {metadataRows.length > 0 && (
         <div className={styles.compareAppendixBlock}>
           <div className={styles.compareAppendixBlockTitle}>Metadata comparison</div>
+
+          {hiddenCount > 0 && (
+            <div className={styles.overviewHiddenBar}>
+              <span className={styles.overviewHiddenLabel}>
+                {hiddenCount} field{hiddenCount !== 1 ? "s" : ""} hidden
+              </span>
+              <button className={styles.overviewRestoreBtn} onClick={restoreAllFields}>
+                Restore all
+              </button>
+            </div>
+          )}
 
           {useTransposed && (
             <div className={styles.docLegend}>
@@ -102,7 +104,18 @@ export default function ComparisonAppendix({ cases, metaFields, sections, docTyp
                       <tr>
                         <th className={styles.compareAppendixDocNumCol}>#</th>
                         {metadataRows.filter((r) => r.isDifferent).map((row) => (
-                          <th key={row.id}>{row.label}</th>
+                          <th key={row.id}>
+                            <span className={styles.overviewColHeader}>
+                              {row.label}
+                              <button
+                                className={styles.overviewColHideBtn}
+                                onClick={() => hideField(row.label)}
+                                title={`Hide "${row.label}" column`}
+                              >
+                                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            </span>
+                          </th>
                         ))}
                       </tr>
                     </thead>
@@ -152,7 +165,18 @@ export default function ComparisonAppendix({ cases, metaFields, sections, docTyp
                 <tbody>
                   {metadataRows.map((row) => (
                     <tr key={row.id}>
-                      <th scope="row">{row.label}</th>
+                      <th scope="row">
+                        <span className={styles.overviewColHeader}>
+                          {row.label}
+                          <button
+                            className={styles.overviewColHideBtn}
+                            onClick={() => hideField(row.label)}
+                            title={`Hide "${row.label}"`}
+                          >
+                            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </span>
+                      </th>
                       {row.values.map((value, index) => (
                         <td
                           key={`${row.id}-${cases[index].id}`}
@@ -166,6 +190,34 @@ export default function ComparisonAppendix({ cases, metaFields, sections, docTyp
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+
+      {differenceSummaries.length > 0 && useTransposed && (
+        <div className={styles.compareAppendixBlock}>
+          <div className={styles.compareAppendixBlockTitle}>Key differences</div>
+          <div className={styles.diffSummaryGrid}>
+            {differenceSummaries.map((item) => (
+              <div key={item.label} className={styles.diffSummaryCard}>
+                <div className={styles.diffSummaryFieldRow}>
+                  <div className={styles.diffSummaryField}>{item.label}</div>
+                  <button
+                    className={styles.overviewColHideBtn}
+                    onClick={() => hideField(item.label)}
+                    title={`Hide "${item.label}"`}
+                    style={{ opacity: 1 }}
+                  >
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div className={styles.diffSummaryValues}>
+                  {item.groups.map((g, i) => (
+                    <span key={i} className={styles.diffSummaryChip}>{g}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

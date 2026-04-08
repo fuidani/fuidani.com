@@ -12,6 +12,8 @@ import {
 } from "../data/documentUtils";
 import {
   FILTER_SECTIONS,
+  PRIMARY_FILTER_DEFS,
+  EXTRA_FILTER_DEFS,
   buildFilterSections,
   matchesSelectedFilters,
   CARD_FIELDS,
@@ -347,7 +349,9 @@ export default function ResultsPage() {
   const [compactFieldsMap, setCompactFieldsMap] = useState({});
   const [sortBy, setSortBy] = useState("relevance");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [viewMode, setViewMode] = useState("list");
+  const [tooltipPos, setTooltipPos] = useState(null);
+  const tooltipTimer = useRef(null);
+  const [viewMode, setViewMode] = useState("compact");
   const [visibleResultCount, setVisibleResultCount] = useState(RESULTS_BATCH_SIZE);
   const [previewWidth, setPreviewWidth] = useState(getInitialPreviewWidth);
   const [isPreviewResizing, setIsPreviewResizing] = useState(false);
@@ -425,6 +429,12 @@ export default function ResultsPage() {
 
   const toggleCollapse = useCallback((key) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+  const expandAllSections = useCallback(() => setCollapsedSections({}), []);
+  const collapseAllSections = useCallback(() => {
+    const all = {};
+    [...PRIMARY_FILTER_DEFS, ...EXTRA_FILTER_DEFS].forEach((d) => { all[d.key] = true; });
+    setCollapsedSections(all);
   }, []);
 
   const toggleDraftFilter = useCallback((sectionKey, optionLabel) => {
@@ -791,8 +801,12 @@ export default function ResultsPage() {
       >
         <FilterSidebar
           filterSections={filterSections}
+          primaryFilterKeys={PRIMARY_FILTER_DEFS.map((d) => d.key)}
+          extraFilterKeys={EXTRA_FILTER_DEFS.map((d) => d.key)}
           collapsedSections={collapsedSections}
           toggleCollapse={toggleCollapse}
+          onExpandAll={expandAllSections}
+          onCollapseAll={collapseAllSections}
           selectedFilters={draftFilters}
           onToggleOption={toggleDraftFilter}
           onApplyFilters={applyFilters}
@@ -896,13 +910,6 @@ export default function ResultsPage() {
               <div className={styles.viewToggle}>
                 <button
                   type="button"
-                  className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.viewToggleBtnActive : ""}`}
-                  onClick={() => setViewMode("list")}
-                >
-                  List
-                </button>
-                <button
-                  type="button"
                   className={`${styles.viewToggleBtn} ${viewMode === "compact" ? styles.viewToggleBtnActive : ""}`}
                   onClick={() => setViewMode("compact")}
                 >
@@ -915,12 +922,37 @@ export default function ResultsPage() {
                 >
                   Cards
                 </button>
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.viewToggleBtnActive : ""}`}
+                  onClick={() => setViewMode("list")}
+                >
+                  List
+                </button>
               </div>
               <div className={styles.reportActionGroup}>
-                <button className={styles.subscribeSearchBtn} onClick={handleSubscribeToSearch} disabled={resultCount === 0}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Subscribe to Report
-                </button>
+                <span
+                  className={styles.tooltipWrap}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    tooltipTimer.current = setTimeout(() => {
+                      setTooltipPos({ top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+                    }, 400);
+                  }}
+                  onMouseLeave={() => {
+                    clearTimeout(tooltipTimer.current);
+                    setTooltipPos(null);
+                  }}
+                >
+                  <button
+                    className={styles.subscribeSearchBtn}
+                    onClick={handleSubscribeToSearch}
+                    disabled={resultCount === 0 || collectionIds.size > 0}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Set Up Alerts
+                  </button>
+                </span>
                 {collectionIds.size > 0 && (
                   <button className={styles.exportSelectedBtn} onClick={handleBuildSelectedReport}>
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -952,11 +984,13 @@ export default function ResultsPage() {
                   <>
                     {effectiveViewMode === "list" && (
                       <div className={styles.resultTableHeader}>
-                        <span className={styles.resultTableHeaderCell}>Pick</span>
+                        <span className={styles.resultTableHeaderCell} title="Select for report">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                        </span>
                         <span className={styles.resultTableHeaderCell}>Document</span>
                         <span className={styles.resultTableHeaderCell}>Type</span>
+                        <span className={styles.resultTableHeaderCell}>Source</span>
                         <span className={styles.resultTableHeaderCell}>Date</span>
-                        <span className={styles.resultTableHeaderCell}>Key Data</span>
                         <span className={styles.resultTableHeaderCell}>Open</span>
                       </div>
                     )}
@@ -1071,7 +1105,7 @@ export default function ResultsPage() {
             <span className={styles.collectorCount}>{collectionIds.size}/{MAX_COLLECTION} selected</span>
             <span className={styles.collectorHint}>
               {collectionIds.size >= 2
-                ? "Build the report first, then use the Compare tab before export."
+                ? "Build the report to see the overview summary and export."
                 : "Hand-picked document ready for a one-time report."}
             </span>
           </div>
@@ -1093,6 +1127,16 @@ export default function ResultsPage() {
           <button className={styles.buildReportBtn} onClick={handleBuildSelectedReport}>
             Build Report &rarr;
           </button>
+        </div>
+      )}
+      {tooltipPos && (
+        <div
+          className={`${styles.tooltip} ${styles.tooltipVisible}`}
+          style={{ top: tooltipPos.top, left: tooltipPos.left, transform: "translateX(-50%)" }}
+        >
+          {resultCount === 0
+            ? "Alerts available once this search has results."
+            : "Get notified when new matching cases are added."}
         </div>
       )}
     </div>

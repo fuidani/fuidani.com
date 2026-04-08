@@ -17,7 +17,7 @@ const PRIMARY_QUESTIONS = [
     title: 'What time period should we search?',
     subtitle: 'Select one',
     singleSelect: true,
-    chips: ['Last 12 months', 'Last 3 years', 'Last 5 years', 'Custom range'],
+    chips: ['Last month', 'Last 6 months', 'Last 12 months', 'Last 5 years', 'All time'],
   },
   {
     id: 'vatIssue',
@@ -83,8 +83,6 @@ export default function RefinePage() {
   const [selections, setSelections] = useState({});
   const [textInputs, setTextInputs] = useState({});
   const [showMore, setShowMore] = useState(false);
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
 
   const toggleChip = (questionId, chip) => {
     const question = [...PRIMARY_QUESTIONS, ...EXTRA_QUESTIONS].find((q) => q.id === questionId);
@@ -113,17 +111,10 @@ export default function RefinePage() {
 
   const allQuestions = [...PRIMARY_QUESTIONS, ...EXTRA_QUESTIONS];
 
-  const timePeriodHasCustom = (selections['timePeriod'] || []).includes('Custom range');
-  const timePeriodAnswered =
-    (selections['timePeriod'] || []).length > 0 &&
-    (!timePeriodHasCustom || (customFrom !== '' || customTo !== ''));
-
   const computeFilterCount = () => {
     let count = 0;
     for (const q of allQuestions) {
-      if (q.id === 'timePeriod') {
-        if (timePeriodAnswered) count++;
-      } else if (isCardAnswered(q)) {
+      if (isCardAnswered(q)) {
         count++;
       }
     }
@@ -142,10 +133,7 @@ export default function RefinePage() {
   };
 
   const renderQuestionCard = (question) => {
-    const answered =
-      question.id === 'timePeriod'
-        ? timePeriodAnswered
-        : isCardAnswered(question);
+    const answered = isCardAnswered(question);
     const cardClass = answered ? styles.questionCardAnswered : styles.questionCard;
 
     return (
@@ -185,21 +173,6 @@ export default function RefinePage() {
               })}
             </div>
 
-            {question.id === 'timePeriod' && timePeriodHasCustom && (
-              <div className={styles.inlineInputs}>
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                />
-                <span className={styles.sep}>to</span>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                />
-              </div>
-            )}
           </>
         )}
       </div>
@@ -254,7 +227,10 @@ export default function RefinePage() {
           <h2>Help us narrow your results</h2>
           <p>
             Answer a few quick questions so we can find the most relevant cases for you.
-            You can skip any question or go straight to results.
+            You can skip any question or{' '}
+            <button className={styles.skipLink} onClick={goToResults}>
+              go straight to results &rarr;
+            </button>
           </p>
         </div>
 
