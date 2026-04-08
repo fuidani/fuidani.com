@@ -85,7 +85,7 @@ export default function ResultCard({
             type="button"
             className={`text-[11px] font-semibold border rounded-[5px] px-[10px] py-1 cursor-pointer flex items-center gap-1 whitespace-nowrap transition-all duration-150 ${
               addedToReport
-                ? "bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700"
+                ? "bg-slate-800 text-white border-slate-800 hover:bg-slate-700 hover:border-slate-700"
                 : "text-slate-600 bg-white border-slate-200 hover:border-yellow-600 hover:bg-yellow-50"
             } disabled:opacity-35 disabled:cursor-not-allowed`}
             onClick={(event) => {

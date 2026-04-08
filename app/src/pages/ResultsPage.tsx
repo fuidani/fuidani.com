@@ -399,6 +399,25 @@ export default function ResultsPage() {
     () => sortedCasesArray.slice(0, visibleResultCount),
     [sortedCasesArray, visibleResultCount]
   );
+
+  const toggleSelectAllVisible = useCallback(() => {
+    setCollectionIds((prev) => {
+      const visibleIds = visibleCasesArray.map(([id]) => id);
+      const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        for (const id of visibleIds) next.delete(id);
+        return next;
+      }
+      const next = new Set(prev);
+      for (const id of visibleIds) {
+        if (next.size >= MAX_COLLECTION) break;
+        next.add(id);
+      }
+      return next;
+    });
+  }, [visibleCasesArray]);
+
   const draftFiltersSignature = useMemo(
     () => JSON.stringify(normalizeFilterState(draftFilters)),
     [draftFilters]
@@ -959,10 +978,10 @@ export default function ResultsPage() {
                   <button
                     key={mode}
                     type="button"
-                    className={`px-3 py-[5px] text-xs font-semibold rounded-lg cursor-pointer border-none transition-[background,color] duration-150 ${
+                    className={`px-3 py-[5px] text-xs font-semibold rounded-lg cursor-pointer border-none transition-[background,color,box-shadow] duration-150 ${
                       viewMode === mode
                         ? "bg-slate-800 text-white"
-                        : "text-slate-500 bg-none hover:text-slate-800 hover:bg-slate-50"
+                        : "text-slate-500 bg-none hover:text-slate-900 hover:bg-slate-100 hover:[box-shadow:inset_0_0_0_1px_rgba(148,163,184,0.22)]"
                     }`}
                     onClick={() => setViewMode(mode)}
                   >
@@ -1025,16 +1044,49 @@ export default function ResultsPage() {
                   className="bg-slate-50 border-b border-slate-100 sticky top-0 z-[2]"
                   style={{ display: "grid", gridTemplateColumns: "var(--result-table-columns)" }}
                 >
-                  {["icon", "Document", "Type", "Source", "Date", "Open"].map((h, i) => (
-                    <span
-                      key={h}
-                      className={`min-w-0 px-3 py-[10px] text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 ${i === 0 || i === 5 ? "flex items-center justify-center text-center" : ""}`}
-                    >
-                      {i === 0 ? (
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-                      ) : h}
-                    </span>
-                  ))}
+                  {["icon", "Document", "Type", "Source", "Date", "Open"].map((h, i) => {
+                    if (i === 0) {
+                      const visibleIds = visibleCasesArray.map(([id]) => id);
+                      const allSelected = visibleIds.length > 0 && visibleIds.every((id) => collectionIds.has(id));
+                      const someSelected = !allSelected && visibleIds.some((id) => collectionIds.has(id));
+                      return (
+                        <span key={h} className="min-w-0 px-3 py-[10px] flex items-center justify-center">
+                          <button
+                            type="button"
+                            className="group w-6 h-6 p-0 border-none bg-transparent appearance-none inline-flex items-center justify-center flex-none shrink-0 cursor-pointer"
+                            onClick={toggleSelectAllVisible}
+                            aria-label={allSelected ? "Deselect all visible" : "Select all visible"}
+                            title={allSelected ? "Deselect all visible" : "Select all visible"}
+                          >
+                            <span
+                              className={`w-[18px] h-[18px] box-border inline-flex items-center justify-center border transition-[color,background,border-color] duration-150 ${
+                                allSelected
+                                  ? "border-slate-700 bg-slate-800 text-white group-hover:border-slate-900 group-hover:bg-slate-900"
+                                  : someSelected
+                                    ? "border-slate-500 bg-slate-200 text-slate-600 group-hover:border-slate-600"
+                                    : "border-slate-300 bg-white text-transparent group-hover:border-slate-500"
+                              }`}
+                              style={{ borderRadius: 0 }}
+                            >
+                              {allSelected ? (
+                                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              ) : someSelected ? (
+                                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                              ) : null}
+                            </span>
+                          </button>
+                        </span>
+                      );
+                    }
+                    return (
+                      <span
+                        key={h}
+                        className={`min-w-0 px-3 py-[10px] text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500 flex items-center ${i === 5 ? "justify-center text-center" : ""}`}
+                      >
+                        {h}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
 
