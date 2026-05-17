@@ -1,0 +1,80 @@
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.code-page {
+    min-height: 80vh;
+    display: grid;
+    place-items: center;
+    text-align:center;
+}
+
+.code-page h1 {
+    font-size: clamp(3rem, 12vw, 9rem);
+}
+
+.page {
+    max-width: 700px;
+    margin: 4rem auto;
+    padding: 0 1.25rem;
+    line-height: 1.6;
+}
+
+
+article {
+    border-top: 1px solid #ddd;
+    padding-top: 1.5rem;
+    margin-top: 1.5 rem;
+}
+
+
+/* display: flex; puts the three links on one row.
+gap: 1rem; adds space between Home, Books, and Now.
+padding: 1.25rem; gives the nav breathing room away from the edges. */
+nav {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem;
+    justify-content: center;
+}
+
+
+/* text-decoration: none; removes the default underline. */
+nav a{
+    color: #111;
+    text-decoration: none;
+}
+
+/* nav a:hover adds the underline back when you move your mouse over a link. */
+nav a:hover { 
+text-decoration: underline;
+}
+
+.book{
+    display: flex;
+    gap: 1.5rem;
+    border-top: 1px solid #ddd;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.book-cover{
+    width: 120px;
+    aspect-ratio: 2/3;
+    background: #eee;
+    color: #777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.book-info h2{
+    margin-top: 0;
+}
+
+.book-meta {
+    color: #666;
+    font-size: 0.9rem;
+}
