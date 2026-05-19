@@ -12,7 +12,7 @@ const books = [
     {
         title: "Memorie di Adriano",
         author: "Marguerite Yourcenar",
-        cover: "images/MemorieDiAdriano.png",
+        cover: "images/memorieDiAdriano.png",
         comment: "This is one of my favourite books. I read it many many times. It is a biography of the 'good emperor' Adriano.",
         quotes: [
             "XXXXX",
@@ -22,7 +22,7 @@ const books = [
         {
         title: "Una vita come tante",
         author: "Hanya Yanagihara",
-        cover: "images/UnaVitaComeTante.png",
+        cover: "images/unaVitaComeTante.png",
         comment: "Amazing book - though a bit heavy. Its a long long book - truly enjoyed it",
         quotes: [
             "XXXXX",
