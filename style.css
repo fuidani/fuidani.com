@@ -78,3 +78,36 @@ text-decoration: underline;
     color: #666;
     font-size: 0.9rem;
 }
+
+.bookshelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 2rem;
+ }
+
+ .book-card {
+    position: relative;
+ }
+
+ .book-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+ }
+
+ .book-comment {
+    display: none;
+    position: absolute;
+    left:0;
+    top: 100%;  
+    background: white;
+    border: 1px solid #ddd;
+    padding: 1rem;
+    z-index: 2;
+    width: 240px;
+    border-radius: 8px;
+ }
+
+ .book-card:hover .book-comment {
+    display: block;
+ }
