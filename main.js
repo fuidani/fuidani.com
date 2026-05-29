@@ -59,11 +59,42 @@ const books = [
             "XXXXX"
         ]
     },
+                {
+        title: "Elon Musk",
+        author: "Walter Isaacson",
+        cover: "images/elonMusk.webp",
+        comment: "A good book about Elon Musk - when someone is very controversial - better read a book about this person to understand them better.",
+        quotes: [
+            "XXXXX",
+            "XXXXX"
+        ]
+    },
+                {
+        title: "Bird by Bird",
+        author: "Anne Lamott",
+        cover: "images/birdByBird.webp",
+        comment: "This is a book about writing. I have convinced myself that I can learn to code by reading books about how to write... books 🤷. I have not learned how to code. But I still enjoy these books.",
+        quotes: [
+            "XXXXX",
+            "XXXXX"
+        ]
+    },
+                {
+        title: "A Philosophy of Software Design",
+        author: "John Ousterhout",
+        cover: "images/aPhilosophyOfSoftwareDesign.webp",
+        comment: "I have read this book to feel cool. Thinking it would teach me how to write any code. I did not learn how to write code but I did feel cool.",
+        quotes: [
+            "XXXXX",
+            "XXXXX"
+        ]
+    },
 ];
 
 const bookshelf = document.querySelector("#bookshelf");
 
-books.forEach(function(book) {
+if (bookshelf) {
+books.forEach(function(book, index) {
     const article = document.createElement("article");
     article.classList.add("book-card");
 
@@ -76,4 +107,9 @@ books.forEach(function(book) {
       `;
 
     bookshelf.appendChild(article);
+    article.onclick = function() {
+        window.location.href = "book.html?id=" + index;
+};
+article.style.cursor = "pointer";
 });
+}
